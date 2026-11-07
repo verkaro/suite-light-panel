@@ -80,6 +80,14 @@ impl Rect {
     pub fn centre(self) -> (i32, i32) {
         (self.x + self.w / 2, self.y + self.h / 2)
     }
+    /// Whether the point (x, y) is in it: a click on it.
+    pub fn holds(self, x: f32, y: f32) -> bool {
+        x >= self.x as f32 && y >= self.y as f32 && x < self.right() as f32 && y < self.bottom() as f32
+    }
+    /// Whether `r` is all inside it.
+    pub fn contains(self, r: Rect) -> bool {
+        r.x >= self.x && r.y >= self.y && r.right() <= self.right() && r.bottom() <= self.bottom()
+    }
 }
 
 /// Pixels to draw on, borrowed.
@@ -230,6 +238,48 @@ impl Surface<'_> {
                 let a = outer.min(inner);
                 if a > 0.0 {
                     self.put(x, y, c, a);
+                }
+            }
+        }
+    }
+
+    /// Part of a ring (as [`Surface::ring`]): `sweep` from one angle to another, radians,
+    /// clockwise from three o'clock (y runs down), as a dial's.
+    pub fn arc(&mut self, cx: f32, cy: f32, r: f32, t: f32, sweep: (f32, f32), c: Rgb) {
+        let (a0, a1) = sweep;
+        use std::f32::consts::TAU;
+        let (x0, x1) = ((cx - r - 1.0).floor() as i32, (cx + r + 1.0).ceil() as i32);
+        let (y0, y1) = ((cy - r - 1.0).floor() as i32, (cy + r + 1.0).ceil() as i32);
+        let span = a1 - a0;
+        for y in y0..y1 {
+            for x in x0..x1 {
+                let (dx, dy) = (x as f32 + 0.5 - cx, y as f32 + 0.5 - cy);
+                if (dy.atan2(dx) - a0).rem_euclid(TAU) > span {
+                    continue;
+                }
+                let d = (dx * dx + dy * dy).sqrt();
+                let a = (r + 0.5 - d).clamp(0.0, 1.0).min((d - (r - t) + 0.5).clamp(0.0, 1.0));
+                if a > 0.0 {
+                    self.put(x, y, c, a);
+                }
+            }
+        }
+    }
+
+    /// A line `w` wide from (x0, y0) to (x1, y1), round-ended.
+    pub fn line(&mut self, x0: f32, y0: f32, x1: f32, y1: f32, w: f32, c: Rgb) {
+        let n = ((x1 - x0).hypot(y1 - y0) * 2.0).ceil().max(1.0) as usize;
+        let mut done = std::collections::HashSet::new();
+        for i in 0..=n {
+            let t = i as f32 / n as f32;
+            let (x, y) = (x0 + (x1 - x0) * t, y0 + (y1 - y0) * t);
+            let r = w / 2.0;
+            for py in (y - r).floor() as i32..=(y + r).ceil() as i32 {
+                for px in (x - r).floor() as i32..=(x + r).ceil() as i32 {
+                    let d = (px as f32 + 0.5 - x).hypot(py as f32 + 0.5 - y);
+                    if d <= r + 0.25 && done.insert((px, py)) {
+                        self.put(px, py, c, 1.0);
+                    }
                 }
             }
         }

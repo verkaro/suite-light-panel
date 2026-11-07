@@ -31,8 +31,8 @@ lp-kms = { git = "https://github.com/verkaro/suite-light-panel", rev = "COMMIT" 
   `/dev/input` watched with inotify (no udev), so a keyboard or pointer plugged in later is
   taken (`Keyboards::add`, `Pointers::add`) once udev has given it to the `input` group; one
   unplugged is dropped when reading it fails. Only `libc`.
-- `lp-paint`: drawing into pixels: rectangles, rounded ones, discs and rings with smoothed
-  edges, glows, text in the console's own Terminus bitmap fonts (PSF, read at run time from
+- `lp-paint`: drawing into pixels: rectangles, rounded ones, discs, rings and arcs (a dial's
+  sweep) with smoothed edges, lines, glows, text in the console's own Terminus bitmap fonts (PSF, read at run time from
   `/usr/share/consolefonts`), a `View` that fits a logical canvas (Dexter's 960 × 540) to the
   screen and takes a click back to it, the pointer's arrow (nothing else draws one), a PNG writer for snapshots, and the family's two meters:
   - `ladder`: the LED ladder, bottom up, green, amber, red (Dexter's deck);
