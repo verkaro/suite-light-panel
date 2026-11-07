@@ -720,6 +720,10 @@ impl Drop for Console {
             }
             // SAFETY: as above.
             unsafe { libc::ioctl(fd, KDSETMODE as _, KD_TEXT) };
+            // Keys that reached the console while the program ran (before its grab took, say) would
+            // otherwise be typed at the shell it returns to.
+            // SAFETY: a plain call on the console's fd.
+            unsafe { libc::tcflush(fd, libc::TCIFLUSH) };
         }
     }
 }

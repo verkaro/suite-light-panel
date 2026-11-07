@@ -279,6 +279,43 @@ impl Surface<'_> {
     }
 }
 
+/// The pointer's arrow: `X` its outline, `.` its fill, the tip at the top left.
+const ARROW: [&str; 17] = [
+    "X",
+    "XX",
+    "X.X",
+    "X..X",
+    "X...X",
+    "X....X",
+    "X.....X",
+    "X......X",
+    "X.......X",
+    "X........X",
+    "X.....XXXXX",
+    "X..X..X",
+    "X.X X..X",
+    "XX  X..X",
+    "X    X..X",
+    "     X..X",
+    "      XX",
+];
+
+/// Draws the pointer with its tip at (x, y), each of its pixels `scale` square (2 on a big
+/// screen, say): light with a dark edge, to show on anything.
+pub fn cursor(s: &mut Surface, x: i32, y: i32, scale: i32) {
+    let k = scale.max(1);
+    for (row, line) in ARROW.iter().enumerate() {
+        for (col, ch) in line.chars().enumerate() {
+            let c = match ch {
+                'X' => 0x101010,
+                '.' => 0xf4f0e6,
+                _ => continue,
+            };
+            s.fill(Rect::new(x + col as i32 * k, y + row as i32 * k, k, k), c);
+        }
+    }
+}
+
 /// A logical canvas fitted to the device's pixels: scaled to fit, centred, the rest left as a
 /// border.
 #[derive(Clone, Copy, Debug)]
@@ -312,6 +349,10 @@ impl View {
         let x0 = self.x(r.x as f32);
         let y0 = self.y(r.y as f32);
         Rect::new(x0, y0, self.x(r.right() as f32) - x0, self.y(r.bottom() as f32) - y0)
+    }
+    /// A device pixel back on the logical canvas: where a click landed.
+    pub fn logical(&self, x: i32, y: i32) -> (f32, f32) {
+        ((x as f32 - self.ox) / self.scale, (y as f32 - self.oy) / self.scale)
     }
     /// The whole canvas on the device.
     pub fn area(&self) -> Rect {

@@ -24,11 +24,14 @@ lp-kms = { git = "https://github.com/verkaro/suite-light-panel", rev = "COMMIT" 
   declared here and checked against the kernel's headers.
 - `lp-keys`: every keyboard under `/dev/input`, read with evdev, optionally grabbed so the keys
   reach the panel alone. Press, repeat and release, the modifiers, and the character on a US
-  layout. Only `libc`.
+  layout. A keyboard is grabbed only once no key is down on it: grabbed between a press and its
+  release, the console never sees the release and is left thinking Ctrl or Alt is held.
+  `Pointers`: the mice, touchpads (a tap clicks), touchscreens and absolute pointers (a tablet,
+  a virtual machine's), as one position on the screen, with clicks and the wheel. Only `libc`.
 - `lp-paint`: drawing into pixels: rectangles, rounded ones, discs and rings with smoothed
   edges, glows, text in the console's own Terminus bitmap fonts (PSF, read at run time from
   `/usr/share/consolefonts`), a `View` that fits a logical canvas (Dexter's 960 × 540) to the
-  screen, a PNG writer for snapshots, and the family's two meters:
+  screen and takes a click back to it, the pointer's arrow (nothing else draws one), a PNG writer for snapshots, and the family's two meters:
   - `ladder`: the LED ladder, bottom up, green, amber, red (Dexter's deck);
   - `disc_led`: one LED a track, white brighter as it's louder, then yellow, then red, held with
     the peak, ringed when armed, recording or clipped (Dexter's remote). For a small screen, or
@@ -54,6 +57,10 @@ cargo test
 ## Where it's got to (2026-11-07)
 
 Run on a real screen: `dexter-kms` (github verkaro/dexter-kms), full screen through KMS on a
-local machine, with keyboard input through evdev and live meters from Dexter over the LAN. The
-ioctl numbers and struct sizes match the kernel's headers. Not yet: a mouse or touchscreen,
-keyboards plugged in after start, and a second tool built on these crates.
+local machine, with keyboard input through evdev and live meters from Dexter over the LAN, and
+switching VTs. The ioctl numbers and struct sizes match the kernel's headers.
+
+The first run left the console's keyboard dead after quitting (its Ctrl and Alt stuck, from a
+grab taken while they were down); the grab now waits for the keys to be let go. The pointers
+are tested off-screen only. Not yet: keyboards and mice plugged in after start, and a second
+tool built on these crates.

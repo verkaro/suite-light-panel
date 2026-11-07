@@ -5,6 +5,18 @@
 //! Only `libc`. Reading the devices needs the `input` group (or a seat's logind handing them
 //! over). Grabbed ([`Keyboards::open`] with `grab`), the keys reach this program alone: not the
 //! console under it, nor the kernel's VT switching, so the program must offer its own way out.
+//!
+//! A keyboard is grabbed only once no key is down on it. The console's keyboard keeps its own
+//! count of the modifiers held, from the presses and releases it sees: grabbed between a press
+//! and its release (the Enter that started the program, the Ctrl+Alt of a switch back to its VT),
+//! the console never sees the release, and after the program it types as if Ctrl and Alt were
+//! still held, which is to say nothing at all. So the keys pressed then reach the console too,
+//! until they're let go.
+//!
+//! [`Pointers`]: the mice, touchpads and touchscreens, read the same way.
+
+mod pointer;
+pub use pointer::{Button, Pointer, PointerKind, Pointers};
 
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read};
@@ -112,58 +124,102 @@ struct Device {
 pub struct Keyboards {
     devs: Vec<Device>,
     held: [bool; 768],
+    /// Grab them, each as soon as no key is down on it.
+    want: bool,
 }
 
-fn ior(nr: u64, size: usize) -> u64 {
+pub(crate) fn ior(nr: u64, size: usize) -> u64 {
     (2 << 30) | ((size as u64) << 16) | ((b'E' as u64) << 8) | nr
 }
-fn iow(nr: u64, size: usize) -> u64 {
+pub(crate) fn iow(nr: u64, size: usize) -> u64 {
     (1 << 30) | ((size as u64) << 16) | ((b'E' as u64) << 8) | nr
 }
 
-/// Whether the device has letter keys: a keyboard, not a power button or a mouse's side keys.
-fn is_keyboard(fd: RawFd) -> bool {
-    let mut bits = [0u8; 96];
-    // EVIOCGBIT(EV_KEY, len)
+/// A bitmap the kernel fills by `EVIOCG*(len)` number `nr`; all zero when it fails.
+pub(crate) fn bits(fd: RawFd, nr: u64) -> [u8; 96] {
+    let mut b = [0u8; 96];
     // SAFETY: the kernel writes at most `len` bytes.
-    let r = unsafe { libc::ioctl(fd, ior(0x20 + EV_KEY as u64, bits.len()) as _, bits.as_mut_ptr()) };
-    let has = |k: usize| bits[k / 8] & (1 << (k % 8)) != 0;
-    r >= 0 && (KEY_A..=KEY_Z).all(has)
+    if unsafe { libc::ioctl(fd, ior(nr, b.len()) as _, b.as_mut_ptr()) } < 0 {
+        b = [0; 96];
+    }
+    b
+}
+pub(crate) fn has(b: &[u8; 96], k: usize) -> bool {
+    b[k / 8] & (1 << (k % 8)) != 0
 }
 
-fn grab(fd: RawFd, on: bool) -> bool {
+/// Whether the device has letter keys: a keyboard, not a power button or a mouse's side keys.
+pub(crate) fn is_keyboard(fd: RawFd) -> bool {
+    // EVIOCGBIT(EV_KEY, len)
+    let b = bits(fd, 0x20 + EV_KEY as u64);
+    (KEY_A..=KEY_Z).all(|k| has(&b, k))
+}
+
+/// Whether any key on the device is down now (EVIOCGKEY).
+fn any_down(fd: RawFd) -> bool {
+    bits(fd, 0x18).iter().any(|&b| b != 0)
+}
+
+pub(crate) fn grab(fd: RawFd, on: bool) -> bool {
     // EVIOCGRAB
     // SAFETY: an int argument by value.
     unsafe { libc::ioctl(fd, iow(0x90, 4) as _, on as libc::c_int) == 0 }
 }
 
-impl Keyboards {
-    /// Opens every keyboard; `grab` takes them for this program alone. Fails only when none can
-    /// be read, saying why.
-    pub fn open(grab_them: bool) -> io::Result<Keyboards> {
-        let mut paths: Vec<PathBuf> = std::fs::read_dir("/dev/input")?
-            .filter_map(|e| e.ok())
-            .map(|e| e.path())
-            .filter(|p| p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with("event")))
-            .collect();
-        paths.sort();
-        let mut devs = Vec::new();
-        let mut denied = 0;
-        for path in paths {
-            let file = match OpenOptions::new().read(true).custom_flags(libc::O_NONBLOCK).open(&path) {
-                Ok(f) => f,
-                Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
-                    denied += 1;
-                    continue;
-                }
-                Err(_) => continue,
-            };
-            if !is_keyboard(file.as_raw_fd()) {
-                continue;
-            }
-            let grabbed = grab_them && grab(file.as_raw_fd(), true);
-            devs.push(Device { file, path, grabbed });
+/// The devices under /dev/input, in order, opened to read without blocking; and how many
+/// couldn't be for want of permission.
+pub(crate) fn open_all() -> io::Result<(Vec<(PathBuf, File)>, usize)> {
+    let mut paths: Vec<PathBuf> = std::fs::read_dir("/dev/input")?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with("event")))
+        .collect();
+    paths.sort();
+    let mut out = Vec::new();
+    let mut denied = 0;
+    for path in paths {
+        match OpenOptions::new().read(true).custom_flags(libc::O_NONBLOCK | libc::O_CLOEXEC).open(&path) {
+            Ok(f) => out.push((path, f)),
+            Err(e) if e.kind() == io::ErrorKind::PermissionDenied => denied += 1,
+            Err(_) => {}
         }
+    }
+    Ok((out, denied))
+}
+
+/// Every event waiting on `file` as (type, code, value), without blocking; `Err` when the
+/// device has gone.
+pub(crate) fn read_events(file: &mut File, out: &mut Vec<(u16, u16, i32)>) -> io::Result<()> {
+    // struct input_event on 64-bit: a timeval (16 bytes), type, code (u16), value (i32).
+    let mut buf = [0u8; 24 * 64];
+    loop {
+        match file.read(&mut buf) {
+            Ok(0) => return Ok(()),
+            Ok(n) => {
+                for ev in buf[..n].as_chunks::<24>().0 {
+                    let kind = u16::from_ne_bytes([ev[16], ev[17]]);
+                    let c = u16::from_ne_bytes([ev[18], ev[19]]);
+                    let v = i32::from_ne_bytes([ev[20], ev[21], ev[22], ev[23]]);
+                    out.push((kind, c, v));
+                }
+            }
+            Err(e) if e.kind() == io::ErrorKind::WouldBlock => return Ok(()),
+            Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
+            Err(e) => return Err(e),
+        }
+    }
+}
+
+impl Keyboards {
+    /// Opens every keyboard; `grab` takes them for this program alone, each once no key is down
+    /// on it. Fails only when none can be read, saying why.
+    pub fn open(grab_them: bool) -> io::Result<Keyboards> {
+        let (all, denied) = open_all()?;
+        let devs: Vec<Device> = all
+            .into_iter()
+            .filter(|(_, f)| is_keyboard(f.as_raw_fd()))
+            .map(|(path, file)| Device { file, path, grabbed: false })
+            .collect();
         if devs.is_empty() {
             return Err(io::Error::other(if denied > 0 {
                 "no keyboard can be read: /dev/input needs the input group (log in again after joining it)"
@@ -171,7 +227,27 @@ impl Keyboards {
                 "no keyboard found under /dev/input"
             }));
         }
-        Ok(Keyboards { devs, held: [false; 768] })
+        let mut k = Keyboards { devs, held: [false; 768], want: grab_them };
+        k.settle();
+        Ok(k)
+    }
+
+    /// Grabs each keyboard wanted and not yet grabbed whose keys are all up.
+    fn settle(&mut self) {
+        if !self.want {
+            return;
+        }
+        for d in self.devs.iter_mut().filter(|d| !d.grabbed) {
+            let fd = d.file.as_raw_fd();
+            if !any_down(fd) {
+                d.grabbed = grab(fd, true);
+            }
+        }
+    }
+
+    /// Whether every keyboard is grabbed (false while one waits for its keys to be let go).
+    pub fn all_grabbed(&self) -> bool {
+        self.devs.iter().all(|d| d.grabbed)
     }
 
     /// The devices, for poll.
@@ -185,10 +261,16 @@ impl Keyboards {
     }
 
     /// Lets the keys go to the console again for a while (the VT switched away), or takes them
-    /// back.
+    /// back, each keyboard once its keys are up.
     pub fn set_grab(&mut self, on: bool) {
-        for d in &mut self.devs {
-            d.grabbed = grab(d.file.as_raw_fd(), on) && on;
+        self.want = on;
+        if on {
+            self.settle();
+            return;
+        }
+        for d in self.devs.iter_mut().filter(|d| d.grabbed) {
+            grab(d.file.as_raw_fd(), false);
+            d.grabbed = false;
         }
     }
 
@@ -204,37 +286,12 @@ impl Keyboards {
 
     /// Every key event waiting, without blocking. A device unplugged is dropped.
     pub fn read(&mut self) -> Vec<Key> {
-        let mut out = Vec::new();
-        let mut gone = Vec::new();
-        for (i, d) in self.devs.iter_mut().enumerate() {
-            // struct input_event on 64-bit: a timeval (16 bytes), type, code (u16), value (i32).
-            let mut buf = [0u8; 24 * 64];
-            loop {
-                match d.file.read(&mut buf) {
-                    Ok(0) => break,
-                    Ok(n) => {
-                        for ev in buf[..n].as_chunks::<24>().0 {
-                            let kind = u16::from_ne_bytes([ev[16], ev[17]]);
-                            let c = u16::from_ne_bytes([ev[18], ev[19]]);
-                            let v = i32::from_ne_bytes([ev[20], ev[21], ev[22], ev[23]]);
-                            if kind == EV_KEY && (c as usize) < 768 {
-                                out.push((c, v));
-                            }
-                        }
-                    }
-                    Err(e) if e.kind() == io::ErrorKind::WouldBlock => break,
-                    Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
-                    Err(_) => {
-                        gone.push(i);
-                        break;
-                    }
-                }
-            }
-        }
-        for i in gone.into_iter().rev() {
-            self.devs.remove(i);
-        }
-        out.into_iter()
+        let mut evs = Vec::new();
+        self.devs.retain_mut(|d| read_events(&mut d.file, &mut evs).is_ok());
+        self.settle();
+        evs.into_iter()
+            .filter(|&(kind, c, _)| kind == EV_KEY && (c as usize) < 768)
+            .map(|(_, c, v)| (c, v))
             .map(|(c, v)| {
                 let state = match v {
                     0 => State::Release,
