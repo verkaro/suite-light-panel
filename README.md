@@ -61,6 +61,6 @@ local machine, with keyboard input through evdev and live meters from Dexter ove
 switching VTs. The ioctl numbers and struct sizes match the kernel's headers.
 
 The first run left the console's keyboard dead after quitting (its Ctrl and Alt stuck, from a
-grab taken while they were down); the grab now waits for the keys to be let go. The pointers
-are tested off-screen only. Not yet: keyboards and mice plugged in after start, and a second
+grab taken while they were down); the grab now waits for the keys to be let go, and the console
+works after quitting. The mouse works on a real screen too. Not yet: keyboards and mice plugged in after start, and a second
 tool built on these crates.
