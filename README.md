@@ -53,7 +53,7 @@ cargo test
 
 ## Where it's got to (2026-11-07)
 
-Built and tested off-screen: the drawing, the fonts, the meters and the PNG snapshots, against a
-live `dexter --sim` through the first panel (`dexter-kms`, in Warren's scratch for now). The ioctl
-numbers and struct sizes match the kernel's headers. Not yet run on a screen: the machine it was
-written on had none connected. The first run on a real console is the next step.
+Run on a real screen: `dexter-kms` (github verkaro/dexter-kms), full screen through KMS on a
+local machine, with keyboard input through evdev and live meters from Dexter over the LAN. The
+ioctl numbers and struct sizes match the kernel's headers. Not yet: a mouse or touchscreen,
+keyboards plugged in after start, and a second tool built on these crates.
