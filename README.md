@@ -27,7 +27,10 @@ lp-kms = { git = "https://github.com/verkaro/suite-light-panel", rev = "COMMIT" 
   layout. A keyboard is grabbed only once no key is down on it: grabbed between a press and its
   release, the console never sees the release and is left thinking Ctrl or Alt is held.
   `Pointers`: the mice, touchpads (a tap clicks), touchscreens and absolute pointers (a tablet,
-  a virtual machine's), as one position on the screen, with clicks and the wheel. Only `libc`.
+  a virtual machine's), as one position on the screen, with clicks and the wheel. `Hotplug`:
+  `/dev/input` watched with inotify (no udev), so a keyboard or pointer plugged in later is
+  taken (`Keyboards::add`, `Pointers::add`) once udev has given it to the `input` group; one
+  unplugged is dropped when reading it fails. Only `libc`.
 - `lp-paint`: drawing into pixels: rectangles, rounded ones, discs and rings with smoothed
   edges, glows, text in the console's own Terminus bitmap fonts (PSF, read at run time from
   `/usr/share/consolefonts`), a `View` that fits a logical canvas (Dexter's 960 × 540) to the
@@ -62,5 +65,5 @@ switching VTs. The ioctl numbers and struct sizes match the kernel's headers.
 
 The first run left the console's keyboard dead after quitting (its Ctrl and Alt stuck, from a
 grab taken while they were down); the grab now waits for the keys to be let go, and the console
-works after quitting. The mouse works on a real screen too. Not yet: keyboards and mice plugged in after start, and a second
-tool built on these crates.
+works after quitting. The mouse works on a real screen too. Hotplug is tested against a
+directory only, not yet with a device plugged in. Not yet: a second tool built on these crates.

@@ -6,7 +6,7 @@
 //! will, without a display server): [`Pointers::cursor`] says where, and whether to, which a
 //! touchscreen's touch turns off and a mouse turns on again.
 
-use crate::{bits, grab, has, is_keyboard, open_all, read_events};
+use crate::{bits, grab, has, is_keyboard, name, open_all, open_one, read_events};
 use std::fs::File;
 use std::io;
 use std::os::fd::{AsRawFd, RawFd};
@@ -122,7 +122,8 @@ struct Device {
     two: bool,
 }
 
-/// Every pointer plugged in when opened, as one position on a screen of `w` × `h`.
+/// Every pointer plugged in when opened, and those [`Pointers::add`]ed since, as one position
+/// on a screen of `w` × `h`.
 pub struct Pointers {
     devs: Vec<Device>,
     w: usize,
@@ -130,6 +131,7 @@ pub struct Pointers {
     x: f32,
     y: f32,
     show: bool,
+    want: bool,
 }
 
 fn classify(fd: RawFd) -> Option<PointerKind> {
@@ -160,6 +162,37 @@ fn classify(fd: RawFd) -> Option<PointerKind> {
     }
 }
 
+impl Device {
+    fn new(path: PathBuf, file: File, grab_it: bool) -> Option<Device> {
+        let fd = file.as_raw_fd();
+        let kind = classify(fd)?;
+        let (ax, ay) = if kind == PointerKind::Mouse {
+            (Axis::default(), Axis::default())
+        } else {
+            (Axis::of(fd, ABS_X), Axis::of(fd, ABS_Y))
+        };
+        let grabbed = grab_it && grab(fd, true);
+        Some(Device {
+            file,
+            path,
+            kind,
+            grabbed,
+            ax,
+            ay,
+            dx: 0,
+            dy: 0,
+            wheel: 0,
+            abs: (None, None),
+            buttons: Vec::new(),
+            touch: None,
+            last: None,
+            began: None,
+            travel: 0.0,
+            two: false,
+        })
+    }
+}
+
 fn button(c: u16) -> Option<Button> {
     match c {
         BTN_LEFT => Some(Button::Left),
@@ -174,37 +207,21 @@ impl Pointers {
     /// None at all is no error: a panel may have only keys.
     pub fn open(grab_them: bool, w: usize, h: usize) -> io::Result<Pointers> {
         let (all, _) = open_all()?;
-        let mut devs = Vec::new();
-        for (path, file) in all {
-            let fd = file.as_raw_fd();
-            let Some(kind) = classify(fd) else { continue };
-            let (ax, ay) = if kind == PointerKind::Mouse {
-                (Axis::default(), Axis::default())
-            } else {
-                (Axis::of(fd, ABS_X), Axis::of(fd, ABS_Y))
-            };
-            let grabbed = grab_them && grab(fd, true);
-            devs.push(Device {
-                file,
-                path,
-                kind,
-                grabbed,
-                ax,
-                ay,
-                dx: 0,
-                dy: 0,
-                wheel: 0,
-                abs: (None, None),
-                buttons: Vec::new(),
-                touch: None,
-                last: None,
-                began: None,
-                travel: 0.0,
-                two: false,
-            });
-        }
+        let devs = all.into_iter().filter_map(|(path, file)| Device::new(path, file, grab_them)).collect();
         let (x, y) = (w as f32 / 2.0, h as f32 / 2.0);
-        Ok(Pointers { devs, w, h, x, y, show: false })
+        Ok(Pointers { devs, w, h, x, y, show: false, want: grab_them })
+    }
+
+    /// Takes the device at `path` if it's a pointer not already held, grabbed as the others
+    /// are: what it was taken for, and its name. As [`crate::Keyboards::add`].
+    pub fn add(&mut self, path: &std::path::Path) -> Option<(PointerKind, String)> {
+        if self.devs.iter().any(|d| d.path == path) {
+            return None;
+        }
+        let d = Device::new(path.to_path_buf(), open_one(path).ok()?, self.want)?;
+        let got = (d.kind, name(d.file.as_raw_fd()));
+        self.devs.push(d);
+        Some(got)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -223,6 +240,7 @@ impl Pointers {
 
     /// As [`crate::Keyboards::set_grab`].
     pub fn set_grab(&mut self, on: bool) {
+        self.want = on;
         for d in &mut self.devs {
             if d.grabbed != on {
                 d.grabbed = grab(d.file.as_raw_fd(), on) && on;

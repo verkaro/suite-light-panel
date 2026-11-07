@@ -13,9 +13,12 @@
 //! still held, which is to say nothing at all. So the keys pressed then reach the console too,
 //! until they're let go.
 //!
-//! [`Pointers`]: the mice, touchpads and touchscreens, read the same way.
+//! [`Pointers`]: the mice, touchpads and touchscreens, read the same way. [`Hotplug`]: the
+//! devices plugged in later, for [`Keyboards::add`] and [`Pointers::add`].
 
+mod hotplug;
 mod pointer;
+pub use hotplug::{Hotplug, INPUT_DIR};
 pub use pointer::{Button, Pointer, PointerKind, Pointers};
 
 use std::fs::{File, OpenOptions};
@@ -120,7 +123,7 @@ struct Device {
     grabbed: bool,
 }
 
-/// Every keyboard plugged in when opened.
+/// Every keyboard plugged in when opened, and those [`Keyboards::add`]ed since.
 pub struct Keyboards {
     devs: Vec<Device>,
     held: [bool; 768],
@@ -166,6 +169,21 @@ pub(crate) fn grab(fd: RawFd, on: bool) -> bool {
     unsafe { libc::ioctl(fd, iow(0x90, 4) as _, on as libc::c_int) == 0 }
 }
 
+/// The device's name, as it gives it ("AT Translated Set 2 keyboard").
+pub(crate) fn name(fd: RawFd) -> String {
+    let mut b = [0u8; 128];
+    // EVIOCGNAME(len)
+    // SAFETY: the kernel writes at most `len` bytes.
+    let n = unsafe { libc::ioctl(fd, ior(0x06, b.len()) as _, b.as_mut_ptr()) };
+    let s = &b[..(n.max(0) as usize).min(b.len())];
+    String::from_utf8_lossy(&s[..s.iter().position(|&c| c == 0).unwrap_or(s.len())]).into_owned()
+}
+
+/// One device, opened to read without blocking.
+pub(crate) fn open_one(path: &std::path::Path) -> io::Result<File> {
+    OpenOptions::new().read(true).custom_flags(libc::O_NONBLOCK | libc::O_CLOEXEC).open(path)
+}
+
 /// The devices under /dev/input, in order, opened to read without blocking; and how many
 /// couldn't be for want of permission.
 pub(crate) fn open_all() -> io::Result<(Vec<(PathBuf, File)>, usize)> {
@@ -178,7 +196,7 @@ pub(crate) fn open_all() -> io::Result<(Vec<(PathBuf, File)>, usize)> {
     let mut out = Vec::new();
     let mut denied = 0;
     for path in paths {
-        match OpenOptions::new().read(true).custom_flags(libc::O_NONBLOCK | libc::O_CLOEXEC).open(&path) {
+        match open_one(&path) {
             Ok(f) => out.push((path, f)),
             Err(e) if e.kind() == io::ErrorKind::PermissionDenied => denied += 1,
             Err(_) => {}
@@ -212,7 +230,8 @@ pub(crate) fn read_events(file: &mut File, out: &mut Vec<(u16, u16, i32)>) -> io
 
 impl Keyboards {
     /// Opens every keyboard; `grab` takes them for this program alone, each once no key is down
-    /// on it. Fails only when none can be read, saying why.
+    /// on it. Fails when none can be read for want of permission, saying why; none plugged in is
+    /// no error (one may be, later: [`Keyboards::add`]).
     pub fn open(grab_them: bool) -> io::Result<Keyboards> {
         let (all, denied) = open_all()?;
         let devs: Vec<Device> = all
@@ -220,12 +239,10 @@ impl Keyboards {
             .filter(|(_, f)| is_keyboard(f.as_raw_fd()))
             .map(|(path, file)| Device { file, path, grabbed: false })
             .collect();
-        if devs.is_empty() {
-            return Err(io::Error::other(if denied > 0 {
-                "no keyboard can be read: /dev/input needs the input group (log in again after joining it)"
-            } else {
-                "no keyboard found under /dev/input"
-            }));
+        if devs.is_empty() && denied > 0 {
+            return Err(io::Error::other(
+                "no keyboard can be read: /dev/input needs the input group (log in again after joining it)",
+            ));
         }
         let mut k = Keyboards { devs, held: [false; 768], want: grab_them };
         k.settle();
@@ -243,6 +260,27 @@ impl Keyboards {
                 d.grabbed = grab(fd, true);
             }
         }
+    }
+
+    /// Takes the device at `path` if it's a keyboard not already held, grabbed as the others
+    /// are: its name when it was. For [`Hotplug::read`]'s paths: one that can't be opened yet
+    /// (udev not done with it) is offered again when its permissions change.
+    pub fn add(&mut self, path: &std::path::Path) -> Option<String> {
+        if self.devs.iter().any(|d| d.path == path) {
+            return None;
+        }
+        let file = open_one(path).ok()?;
+        if !is_keyboard(file.as_raw_fd()) {
+            return None;
+        }
+        let n = name(file.as_raw_fd());
+        self.devs.push(Device { file, path: path.to_path_buf(), grabbed: false });
+        self.settle();
+        Some(n)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.devs.is_empty()
     }
 
     /// Whether every keyboard is grabbed (false while one waits for its keys to be let go).
@@ -287,7 +325,12 @@ impl Keyboards {
     /// Every key event waiting, without blocking. A device unplugged is dropped.
     pub fn read(&mut self) -> Vec<Key> {
         let mut evs = Vec::new();
+        let before = self.devs.len();
         self.devs.retain_mut(|d| read_events(&mut d.file, &mut evs).is_ok());
+        if self.devs.len() < before {
+            // A keyboard unplugged with keys down: none of them is held now.
+            self.held = [false; 768];
+        }
         self.settle();
         evs.into_iter()
             .filter(|&(kind, c, _)| kind == EV_KEY && (c as usize) < 768)
