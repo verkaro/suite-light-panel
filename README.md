@@ -66,4 +66,5 @@ switching VTs. The ioctl numbers and struct sizes match the kernel's headers.
 The first run left the console's keyboard dead after quitting (its Ctrl and Alt stuck, from a
 grab taken while they were down); the grab now waits for the keys to be let go, and the console
 works after quitting. The mouse works on a real screen too. Keyboards and mice plugged in
-and out while it runs are picked up and let go. Not yet: a second tool built on these crates.
+and out while it runs are picked up and let go. The dials' arcs draw MIX's outputs on a
+real screen. Not yet: a second tool built on these crates.
