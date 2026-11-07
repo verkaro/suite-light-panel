@@ -1,0 +1,16 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+repository = "https://github.com/verkaro/suite-light-panel"
+
+[workspace.dependencies]
+lp-kms = { path = "crates/kms" }
+lp-keys = { path = "crates/keys" }
+lp-paint = { path = "crates/paint" }
+libc = "0.2"
+miniz_oxide = "0.8"
