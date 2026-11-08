@@ -80,7 +80,8 @@ impl Script {
 }
 
 /// Keys as typed: each character one (a capital, `+` or `?` with Shift), or a key named in
-/// braces: `{enter}` `{esc}` `{left}` `{right}` `{up}` `{down}`. Each a press.
+/// braces: `{enter}` `{esc}` `{tab}` `{backspace}` `{left}` `{right}` `{up}` `{down}`
+/// `{pgup}` `{pgdn}`. Each a press.
 pub fn keys_of(s: &str) -> Result<Vec<Key>, String> {
     let mut out = Vec::new();
     let mut it = s.chars();
@@ -90,6 +91,10 @@ pub fn keys_of(s: &str) -> Result<Vec<Key>, String> {
             let code = match name.as_str() {
                 "enter" => code::ENTER,
                 "esc" => code::ESC,
+                "tab" => code::TAB,
+                "backspace" => code::BACKSPACE,
+                "pgup" => code::PAGEUP,
+                "pgdn" => code::PAGEDOWN,
                 "left" => code::LEFT,
                 "right" => code::RIGHT,
                 "up" => code::UP,
@@ -290,7 +295,9 @@ mod tests {
                 (code::LEFT, None, false),
             ]
         );
-        assert_eq!(keys_of("{tab}"), Err("--keys: no key {tab}".into()));
+        let named: Vec<_> = keys_of("{tab}{backspace}{pgup}{pgdn}").unwrap().iter().map(|k| k.code).collect();
+        assert_eq!(named, [code::TAB, code::BACKSPACE, code::PAGEUP, code::PAGEDOWN]);
+        assert_eq!(keys_of("{f13}"), Err("--keys: no key {f13}".into()));
         assert_eq!(keys_of("]"), Err("--keys: no key for ']'".into()));
     }
 

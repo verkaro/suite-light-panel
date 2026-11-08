@@ -6,6 +6,8 @@ the git log.
 
 ## 2026-11-07
 
+- `lp-panel`: `snapshot::keys_of` names four more keys, `{tab}`, `{backspace}`, `{pgup}` and
+  `{pgdn}`, for Tape's panel (its focus and its typing). Nothing to do.
 - `lp-panel`: `snapshot`, the harness that tests a panel without a screen, from dexter-kms:
   `Script::parse` (`--size`, `--click`, `--drag`, `--keys`), `keys_of`, and `snapshot`, which
   plays the script through the panel's own `Panel` methods and writes a PNG. A panel is
