@@ -6,6 +6,9 @@ the git log.
 
 ## 2026-11-07
 
+- `lp-paint`: `dark`, the family's dark skin as `page-kit.js` has it (`dark::TEXT`,
+  `dark::BTN_EDGE`, …, and `dark::ALL` by the page's names), from dexter-kms. Nothing to do;
+  a panel uses it in place of colours of its own.
 - `lp-keys`: `FRAME_KEY` (Ctrl+Alt+Esc), `is_frame_key` and `under_frame()`, the key every panel
   shares to leave for muntin. A panel acts on it only under muntin, quitting with status 0
   (`../muntin/DexterKms.md` for dexter-kms).
