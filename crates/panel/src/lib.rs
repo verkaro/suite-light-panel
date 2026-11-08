@@ -10,7 +10,9 @@
 //!
 //! What's shown, what the keys do and what's said to the server are the panel's: a
 //! [`Panel`]. Moved here from dexter-kms's `main.rs` (2026-11-07), for Tape's panel and the
-//! ones after it.
+//! ones after it. [`snapshot`] runs the same panel without a screen, for its tests.
+
+pub mod snapshot;
 
 use lp_keys::{Hotplug, Key, Keyboards, PointerKind, Pointers};
 use lp_paint::{Image, Surface};

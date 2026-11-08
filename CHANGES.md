@@ -6,6 +6,10 @@ the git log.
 
 ## 2026-11-07
 
+- `lp-panel`: `snapshot`, the harness that tests a panel without a screen, from dexter-kms:
+  `Script::parse` (`--size`, `--click`, `--drag`, `--keys`), `keys_of`, and `snapshot`, which
+  plays the script through the panel's own `Panel` methods and writes a PNG. A panel is
+  `Headless` by saying how long to wait for its server (`settle`). Nothing to do.
 - `lp-panel`, a new crate, from dexter-kms's screen loop: `run` drives a `Panel` (`take`,
   `key`, `point`, `plugged`, `tick`, `draw`) on the screen, with the console, the VT switched
   by signal, the keys and pointers (plugged in later too), and a `Wake` pipe for the panel's

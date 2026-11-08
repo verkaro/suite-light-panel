@@ -17,8 +17,8 @@ needing only `libc` and each other (plus `miniz_oxide` for PNG):
   example Dexter's 960 × 540) to the screen and maps clicks back; the `Pen` that draws through
   one; the dark skin (`dark`, page-kit's colours); the pointer's arrow; PNG output for
   snapshots; and the family's meters (`ladder`, `disc_led`).
-- `lp-panel`: the loop a panel runs on the other three (`run` and the `Panel` trait), and the
-  pipe that wakes it.
+- `lp-panel`: the loop a panel runs on the other three (`run` and the `Panel` trait), the
+  pipe that wakes it, and `snapshot`, the same panel run with no screen for its tests.
 
 It follows `../suite-audio-libs`'s rules and works the same way: tools pin it by git commit and
 patch it to this folder in a `.cargo/config.toml` kept out of git. Only shared code belongs here.

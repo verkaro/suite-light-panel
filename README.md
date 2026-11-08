@@ -51,7 +51,9 @@ lp-kms = { git = "https://github.com/verkaro/suite-light-panel", rev = "COMMIT" 
   by signal with the card and keys given up and taken back, devices plugged in, one `poll`
   woken by a `Wake` pipe the panel's threads write to, a frame drawn only when something
   changed, and everything put back on the way out. Under muntin, its shared key quits
-  (`Options::frame_key`).
+  (`Options::frame_key`). `snapshot` runs the same panel with no screen, for its tests: the
+  tool's `--snapshot PNG` with `--size`, `--click`, `--drag` and `--keys`, played through the
+  panel's own key and pointer handling, then drawn once.
 
 ## Needs
 
