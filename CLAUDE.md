@@ -53,13 +53,20 @@ records what has been confirmed that way.
   its keys, its protocol. dexter-kms is a separate repository only because Dexter itself must
   not depend on its panel.
 - **The suite grows from the second panel.** Code moves here when a second tool's panel would
-  otherwise copy it from dexter-kms, not before. The likely candidates:
-  - the screen loop: poll, wake pipe, VT release and acquire, hotplug
+  otherwise copy it from dexter-kms, not before. Tape's panel is the second, so these came
+  from dexter-kms on 2026-11-07, before it starts (`CHANGES.md`):
+  - the screen loop: poll, wake pipe, VT release and acquire, hotplug (`lp-panel`'s `run`)
   - the `--snapshot --click --drag --keys` harness that tests a panel without a screen
-  - the `Pen` text helper and the dark skin's palette (shared with `as-page-kit`'s skins if it
-    can be, so the browser page and the console panel share one source of colours)
-  - widgets such as the fader law and the dial
+    (`lp-panel`'s `snapshot`)
+  - the `Pen` text helper and the dark skin's palette (`lp_paint::Pen`, `lp_paint::dark`). The
+    colours are page-kit's dark skin by value, and a test compares them with `page-kit.js`
+    when `../suite-audio-libs` is beside this suite, so the two can't drift apart unseen.
+
+  Still to come, when a second panel wants them: widgets such as the fader law and the dial.
+- **A new panel** is a `lp_panel::Panel` run by `lp_panel::run` (with `frame_key` on, for
+  muntin), and `snapshot::Headless` for its tests; its server through `as-ws`'s client. dexter-kms
+  is the example (its `main.rs`, `Screen`).
 - **For muntin, the frame** (`../muntin/docs/rfc.md`, section 7): the shared key and the
   console's handover went in on 2026-11-07 (`CHANGES.md`).
-- **The deck's WebSocket client goes to the audio suite,** as `as-ws`'s client half, not here
-  (`../suite-audio-libs/PLAN.md`).
+- **The deck's WebSocket client went to the audio suite,** as `as-ws`'s client half, not here
+  (2026-11-07, `../suite-audio-libs/PLAN.md`).
