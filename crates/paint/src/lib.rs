@@ -4,15 +4,18 @@
 //! [`Image`] in memory, written out as PNG to look at.
 //!
 //! A panel is laid out on a logical canvas (Dexter's is 960 × 540) and drawn at the screen's own
-//! resolution through a [`View`], so rectangles stay sharp and adjacent ones still meet.
+//! resolution through a [`View`], so rectangles stay sharp and adjacent ones still meet. A
+//! [`Pen`] draws through one.
 
 pub mod dark;
 mod font;
 mod meter;
+mod pen;
 mod png;
 
 pub use font::{Font, Fonts};
 pub use meter::{Disc, LedColors, disc_led, ladder};
+pub use pen::{Align, Pen};
 pub use png::write_png;
 
 /// 0x00RRGGBB.

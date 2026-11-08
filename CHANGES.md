@@ -6,6 +6,9 @@ the git log.
 
 ## 2026-11-07
 
+- `lp-paint`: `Pen` and `Align`, from dexter-kms: rectangles and text placed on a logical
+  canvas through a `View` (text set smaller, then cut with …, to fit its box; text up the
+  screen; a symbol the font has; a section's rule in the dark skin). Nothing to do.
 - `lp-paint`: `dark`, the family's dark skin as `page-kit.js` has it (`dark::TEXT`,
   `dark::BTN_EDGE`, …, and `dark::ALL` by the page's names), from dexter-kms. Nothing to do;
   a panel uses it in place of colours of its own.

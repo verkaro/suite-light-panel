@@ -34,7 +34,8 @@ lp-kms = { git = "https://github.com/verkaro/suite-light-panel", rev = "COMMIT" 
 - `lp-paint`: drawing into pixels: rectangles, rounded ones, discs, rings and arcs (a dial's
   sweep) with smoothed edges, lines, glows, text in the console's own Terminus bitmap fonts (PSF, read at run time from
   `/usr/share/consolefonts`), the family's dark skin (`dark`: the colours `page-kit.js` gives
-  the page, checked against it when `../suite-audio-libs` is beside this suite), a `View` that fits a logical canvas (Dexter's 960 × 540) to the
+  the page, checked against it when `../suite-audio-libs` is beside this suite), a `Pen` that places
+  rectangles and text in a box on a logical canvas, a `View` that fits a logical canvas (Dexter's 960 × 540) to the
   screen and takes a click back to it, the pointer's arrow (nothing else draws one), a PNG writer for snapshots, and the family's two meters:
   - `ladder`: the LED ladder, bottom up, green, amber, red (Dexter's deck);
   - `disc_led`: one LED a track, white brighter as it's louder, then yellow, then red, held with
