@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 The pieces a Dexter-family tool needs to put its front panel on a whole screen, with nothing
-between it and the hardware: no X, no Wayland, no browser, no terminal. Three crates, each
-needing only `libc` (plus `miniz_oxide` for PNG):
+between it and the hardware: no X, no Wayland, no browser, no terminal. Four crates, each
+needing only `libc` and each other (plus `miniz_oxide` for PNG):
 
 - `lp-kms`: the screen through DRM/KMS, two dumb buffers flipped on the vertical blank, and the
   VT handed over and back by signal (`Console`).
@@ -14,8 +14,11 @@ needing only `libc` (plus `miniz_oxide` for PNG):
   only once no key is down, with `Hotplug` watching `/dev/input` through inotify.
 - `lp-paint`: drawing into an in-memory `Image`. It covers shapes, arcs and glows; Terminus
   bitmap text read from `/usr/share/consolefonts`; a `View` that maps a logical canvas (for
-  example Dexter's 960 × 540) to the screen and maps clicks back; the pointer's arrow; PNG
-  output for snapshots; and the family's meters (`ladder`, `disc_led`).
+  example Dexter's 960 × 540) to the screen and maps clicks back; the `Pen` that draws through
+  one; the dark skin (`dark`, page-kit's colours); the pointer's arrow; PNG output for
+  snapshots; and the family's meters (`ladder`, `disc_led`).
+- `lp-panel`: the loop a panel runs on the other three (`run` and the `Panel` trait), and the
+  pipe that wakes it.
 
 It follows `../suite-audio-libs`'s rules and works the same way: tools pin it by git commit and
 patch it to this folder in a `.cargo/config.toml` kept out of git. Only shared code belongs here.

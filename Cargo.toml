@@ -12,5 +12,6 @@ repository = "https://github.com/verkaro/suite-light-panel"
 lp-kms = { path = "crates/kms" }
 lp-keys = { path = "crates/keys" }
 lp-paint = { path = "crates/paint" }
+lp-panel = { path = "crates/panel" }
 libc = "0.2"
 miniz_oxide = "0.8"

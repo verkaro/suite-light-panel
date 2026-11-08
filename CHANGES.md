@@ -6,6 +6,12 @@ the git log.
 
 ## 2026-11-07
 
+- `lp-panel`, a new crate, from dexter-kms's screen loop: `run` drives a `Panel` (`take`,
+  `key`, `point`, `plugged`, `tick`, `draw`) on the screen, with the console, the VT switched
+  by signal, the keys and pointers (plugged in later too), and a `Wake` pipe for the panel's
+  own threads. `quit()` ends it, as SIGTERM does. `vt_key` for Ctrl+Alt+F*n*. With
+  `Options::frame_key`, the frame's key quits under muntin before the panel sees it. A new
+  panel runs on it rather than writing its own.
 - `lp-paint`: `Pen` and `Align`, from dexter-kms: rectangles and text placed on a logical
   canvas through a `View` (text set smaller, then cut with …, to fit its box; text up the
   screen; a symbol the font has; a section's rule in the dark skin). Nothing to do.

@@ -36,6 +36,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "lp-panel"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "lp-keys",
+ "lp-kms",
+ "lp-paint",
+]
+
+[[package]]
 name = "miniz_oxide"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"

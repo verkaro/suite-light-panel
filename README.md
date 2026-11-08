@@ -45,6 +45,14 @@ lp-kms = { git = "https://github.com/verkaro/suite-light-panel", rev = "COMMIT" 
   Draw into an `Image` in memory and copy it to the screen once a frame
   (`Surface::copy_from`): a KMS buffer is slow to read, and blending reads.
 
+- `lp-panel`: the loop a panel runs on the other three. A tool's panel is a `Panel` (what it
+  takes from its own threads, its keys, the pointer, a tick, its drawing), and `run` does the
+  rest: the console in graphics mode, the screen, the keys and pointers grabbed, VTs switched
+  by signal with the card and keys given up and taken back, devices plugged in, one `poll`
+  woken by a `Wake` pipe the panel's threads write to, a frame drawn only when something
+  changed, and everything put back on the way out. Under muntin, its shared key quits
+  (`Options::frame_key`).
+
 ## Needs
 
 - In the `video` group, for `/dev/dri/card*`, and no display server holding the card.
