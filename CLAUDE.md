@@ -19,6 +19,8 @@ needing only `libc` (plus `miniz_oxide` for PNG):
 
 It follows `../suite-audio-libs`'s rules and works the same way: tools pin it by git commit and
 patch it to this folder in a `.cargo/config.toml` kept out of git. Only shared code belongs here.
+A change to an interface or a behaviour gets a line in `CHANGES.md`, newest first, in the same
+commit. The family's rules are `../CLAUDE.md`.
 
 ## Commands
 
