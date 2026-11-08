@@ -83,5 +83,4 @@ real screen. Not yet: a second tool built on these crates.
 
 `lp-panel` (2026-11-07) is dexter-kms's own loop and snapshot harness moved here, with its
 `Pen` and palette into `lp-paint`. dexter-kms's snapshots draw the same after the move, byte
-for byte, but the loop hasn't yet been run on a real screen from here: VT switching, a
-keyboard plugged in and quitting are Warren's to try again through dexter-kms.
+for byte, and on a real screen it looks and acts as before (Warren, 2026-11-07).
