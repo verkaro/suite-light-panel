@@ -56,5 +56,11 @@ records what has been confirmed that way.
   - the `Pen` text helper and the dark skin's palette (shared with `as-page-kit`'s skins if it
     can be, so the browser page and the console panel share one source of colours)
   - widgets such as the fader law and the dial
+- **For muntin, the frame** (asked 2026-11-07 in `../muntin/docs/rfc.md`, section 7; made
+  in muntin's sessions once Warren has reviewed the RFC, each with its `CHANGES.md` line):
+  - `lp-kms`: `Console` puts back the KD mode it found (text if the process that set
+    graphics is gone); `Console::reclaim()` and `Console::is_foreground()`.
+  - `lp-keys`: `is_frame_key`, `FRAME_KEY` (Ctrl+Alt+Esc, proposed) and `under_frame()`;
+    `set_grab(true)` reads the keys really down (`EVIOCGKEY`) before grabbing.
 - **The deck's WebSocket client goes to the audio suite,** as `as-ws`'s client half, not here
   (`../suite-audio-libs/PLAN.md`).
