@@ -528,7 +528,9 @@ impl Screen {
         Ok(())
     }
 
-    /// Lets go of the card for another (the VT switched away); [`Screen::resume`] takes it back.
+    /// Lets go of the card for another: the VT switched away, or a frame handing the screen to a
+    /// panel, which becomes master on opening the card. [`Screen::resume`] takes it back (master
+    /// again, as this fd was before, and its last frame shown).
     pub fn suspend(&mut self) -> io::Result<()> {
         self.flip_pending = false;
         ioctl(self.file.as_raw_fd(), DROP_MASTER, &mut 0u8)
@@ -635,6 +637,8 @@ fn other(msg: &str) -> io::Error {
 // ---------- the console ----------
 
 const KDSETMODE: u64 = 0x4B3A;
+const KDGETMODE: u64 = 0x4B3B;
+const VT_GETSTATE: u64 = 0x5603;
 const KD_TEXT: libc::c_int = 0;
 const KD_GRAPHICS: libc::c_int = 1;
 const VT_SETMODE: u64 = 0x5602;
@@ -643,6 +647,14 @@ const VT_ACTIVATE: u64 = 0x5606;
 const VT_AUTO: libc::c_char = 0;
 const VT_PROCESS: libc::c_char = 1;
 const VT_ACKACQ: libc::c_int = 2;
+
+#[repr(C)]
+#[derive(Default)]
+struct VtStat {
+    v_active: libc::c_ushort,
+    v_signal: libc::c_ushort,
+    v_state: libc::c_ushort,
+}
 
 #[repr(C)]
 struct VtMode {
@@ -654,8 +666,11 @@ struct VtMode {
 }
 
 /// The Linux console the program runs on, in graphics mode while this lives: the kernel stops
-/// drawing its text and cursor over the screen. Back to text when dropped. On anything but a
-/// console (ssh, a terminal emulator) it does nothing.
+/// drawing its text and cursor over the screen. Dropped, it puts back the mode it found: text
+/// standing alone, graphics when a frame (muntin) ran this program and will draw again. If it
+/// found graphics but the process that ran it is gone, it puts back text, so the screen is
+/// never left with no one drawing it. On anything but a console (ssh, a terminal emulator) it
+/// does nothing.
 ///
 /// With [`Console::switch_by_signal`], a VT switch asks first: the kernel sends `release` when
 /// another VT wants the screen, and the program gives up the card and the keys and calls
@@ -665,14 +680,24 @@ struct VtMode {
 pub struct Console {
     fd: Option<RawFd>,
     process: bool,
+    signals: (i32, i32),
+    found: libc::c_int,
+    parent: libc::pid_t,
 }
 
 impl Console {
     pub fn graphics() -> Console {
         let fd = 0;
-        // SAFETY: an ioctl on stdin; it fails harmlessly on anything but a VT.
-        let ok = unsafe { libc::ioctl(fd, KDSETMODE as _, KD_GRAPHICS) } == 0;
-        Console { fd: ok.then_some(fd), process: false }
+        let mut found: libc::c_int = KD_TEXT;
+        // SAFETY: ioctls on stdin, an int by pointer then by value; they fail harmlessly on
+        // anything but a VT.
+        let ok = unsafe {
+            libc::ioctl(fd, KDGETMODE as _, &mut found);
+            libc::ioctl(fd, KDSETMODE as _, KD_GRAPHICS) == 0
+        };
+        // SAFETY: a plain call.
+        let parent = unsafe { libc::getppid() };
+        Console { fd: ok.then_some(fd), process: false, signals: (0, 0), found, parent }
     }
     pub fn is_console(&self) -> bool {
         self.fd.is_some()
@@ -685,7 +710,37 @@ impl Console {
         let m = VtMode { mode: VT_PROCESS, waitv: 0, relsig: release as _, acqsig: acquire as _, frsig: 0 };
         // SAFETY: a vt_mode by pointer.
         self.process = unsafe { libc::ioctl(fd, VT_SETMODE as _, &m) } == 0;
+        self.signals = (release, acquire);
         self.process
+    }
+
+    /// Takes the console back after another program has had it (a panel run by the frame):
+    /// graphics again, VT switches by signal again if they were, and whatever was typed at the
+    /// VT meanwhile dropped. The other program's settings die with it, so the frame says its own
+    /// again.
+    pub fn reclaim(&mut self) {
+        let Some(fd) = self.fd else { return };
+        // SAFETY: an int argument by value.
+        unsafe { libc::ioctl(fd, KDSETMODE as _, KD_GRAPHICS) };
+        if self.process {
+            let (r, a) = self.signals;
+            self.switch_by_signal(r, a);
+        }
+        // SAFETY: a plain call on the console's fd.
+        unsafe { libc::tcflush(fd, libc::TCIFLUSH) };
+    }
+
+    /// Whether this VT is the one on screen. True on anything but a console, and when it can't
+    /// be told.
+    pub fn is_foreground(&self) -> bool {
+        let Some(fd) = self.fd else { return true };
+        let Some(own) = vt_number(fd) else { return true };
+        let mut st = VtStat::default();
+        // SAFETY: a vt_stat by pointer.
+        if unsafe { libc::ioctl(fd, VT_GETSTATE as _, &mut st) } != 0 {
+            return true;
+        }
+        st.v_active as u32 == own
     }
     /// Lets the switch away go ahead: call once the card and the keys are let go.
     pub fn released(&self) {
@@ -718,14 +773,29 @@ impl Drop for Console {
                 // SAFETY: as above.
                 unsafe { libc::ioctl(fd, VT_SETMODE as _, &m) };
             }
+            // The mode found, but text if the frame that wanted graphics has gone.
+            // SAFETY: a plain call.
+            let orphaned = unsafe { libc::getppid() } != self.parent;
+            let mode = if self.found == KD_GRAPHICS && !orphaned { KD_GRAPHICS } else { KD_TEXT };
             // SAFETY: as above.
-            unsafe { libc::ioctl(fd, KDSETMODE as _, KD_TEXT) };
+            unsafe { libc::ioctl(fd, KDSETMODE as _, mode) };
             // Keys that reached the console while the program ran (before its grab took, say) would
             // otherwise be typed at the shell it returns to.
             // SAFETY: a plain call on the console's fd.
             unsafe { libc::tcflush(fd, libc::TCIFLUSH) };
         }
     }
+}
+
+/// The VT a console's fd is, from its device number: /dev/ttyN is major 4, minor N (1 to 63).
+fn vt_number(fd: RawFd) -> Option<u32> {
+    // SAFETY: fstat into a zeroed struct.
+    let mut st: libc::stat = unsafe { std::mem::zeroed() };
+    if unsafe { libc::fstat(fd, &mut st) } != 0 {
+        return None;
+    }
+    let (major, minor) = (libc::major(st.st_rdev), libc::minor(st.st_rdev));
+    (major == 4 && (1..=63).contains(&minor)).then_some(minor)
 }
 
 #[cfg(test)]
@@ -742,6 +812,8 @@ mod tests {
         assert_eq!(std::mem::size_of::<PageFlip>(), 24);
         assert_eq!(std::mem::size_of::<CreateDumb>(), 32);
         assert_eq!(std::mem::size_of::<MapDumb>(), 16);
+        assert_eq!(std::mem::size_of::<VtStat>(), 6);
+        assert_eq!(std::mem::size_of::<VtMode>(), 8);
     }
 
     #[test]
@@ -752,5 +824,16 @@ mod tests {
         assert_eq!(SETCRTC, 0xC06864A2);
         assert_eq!(PAGE_FLIP, 0xC01864B0);
         assert_eq!(CREATE_DUMB, 0xC02064B2);
+        // From linux/kd.h and linux/vt.h.
+        assert_eq!(KDGETMODE, 0x4B3B);
+        assert_eq!(VT_GETSTATE, 0x5603);
+    }
+
+    #[test]
+    fn not_a_console() {
+        // Under cargo test, stdin is no VT: nothing happens, and it says it's in front.
+        let mut c = Console { fd: None, process: false, signals: (0, 0), found: KD_TEXT, parent: 0 };
+        c.reclaim();
+        assert!(c.is_foreground());
     }
 }

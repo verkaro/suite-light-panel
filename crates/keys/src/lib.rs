@@ -96,6 +96,21 @@ impl Key {
     }
 }
 
+/// The key every panel shares to leave for muntin, the family's frame: Ctrl+Alt+Esc (Warren,
+/// 2026-11-07). A panel acts on it only [`under_frame`], quitting as on its own quit key, with
+/// exit status 0; standing alone the key does nothing.
+pub const FRAME_KEY: &str = "Ctrl+Alt+Esc";
+
+/// Whether `k` is [`FRAME_KEY`], pressed.
+pub fn is_frame_key(k: &Key) -> bool {
+    k.state == State::Press && k.mods.ctrl && k.mods.alt && k.code == code::ESC
+}
+
+/// Whether the frame started this program: it sets `MUNTIN_TOOL` to the tool's id.
+pub fn under_frame() -> bool {
+    std::env::var_os("MUNTIN_TOOL").is_some_and(|v| !v.is_empty())
+}
+
 /// The US layout: a code's character unshifted and shifted.
 fn us(code: u16) -> Option<(char, char)> {
     const ROW1: &[u8] = b"1234567890-=";
@@ -300,9 +315,20 @@ impl Keyboards {
 
     /// Lets the keys go to the console again for a while (the VT switched away), or takes them
     /// back, each keyboard once its keys are up.
+    ///
+    /// Taking them back, which keys are held is read afresh from each keyboard (`EVIOCGKEY`):
+    /// while another program had them, a press could come without its release, and the
+    /// modifiers would be wrong on every key after.
     pub fn set_grab(&mut self, on: bool) {
         self.want = on;
         if on {
+            self.held = [false; 768];
+            for d in &self.devs {
+                let b = bits(d.file.as_raw_fd(), 0x18);
+                for (c, h) in self.held.iter_mut().enumerate() {
+                    *h |= has(&b, c);
+                }
+            }
             self.settle();
             return;
         }
@@ -378,6 +404,22 @@ mod tests {
         assert_eq!(us(53), Some(('/', '?')));
         assert_eq!(us(57), Some((' ', ' ')));
         assert_eq!(us(code::HOME), None);
+    }
+
+    #[test]
+    fn the_frame_key() {
+        let k = |code, state, ctrl, alt| Key {
+            code,
+            state,
+            mods: Mods { ctrl, alt, ..Mods::default() },
+            ch: None,
+        };
+        assert!(is_frame_key(&k(code::ESC, State::Press, true, true)));
+        assert!(!is_frame_key(&k(code::ESC, State::Repeat, true, true)));
+        assert!(!is_frame_key(&k(code::ESC, State::Release, true, true)));
+        assert!(!is_frame_key(&k(code::ESC, State::Press, true, false)));
+        assert!(!is_frame_key(&k(code::ESC, State::Press, false, true)));
+        assert!(!is_frame_key(&k(code::ENTER, State::Press, true, true)));
     }
 
     #[test]
