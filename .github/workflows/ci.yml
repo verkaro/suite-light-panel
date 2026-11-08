@@ -1,0 +1,24 @@
+# Build, lint and test every push and pull request: what CLAUDE.md's Commands run locally.
+# Terminus is installed so lp-paint's font test runs rather than passing for want of the fonts.
+# Nothing here needs a screen or an input device: a real screen stays Warren's to try.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - uses: actions/checkout@v5
+      - name: The console's Terminus fonts
+        run: sudo apt-get update && sudo apt-get install -y console-setup-linux
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
