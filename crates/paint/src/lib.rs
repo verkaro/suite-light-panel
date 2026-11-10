@@ -9,14 +9,22 @@
 
 pub mod dark;
 mod font;
+mod hits;
+mod list;
 mod meter;
+mod parts;
 mod pen;
 mod png;
+mod wave;
 
 pub use font::{Font, Fonts};
+pub use hits::{Hit, Hits, bar_name};
+pub use list::{Cell, Column, List, ListLook};
 pub use meter::{Disc, LedColors, disc_led, ladder};
+pub use parts::{Field, FieldState, KeyLook};
 pub use pen::{Align, Pen};
 pub use png::write_png;
+pub use wave::{Marker, Scale, Wave};
 
 /// 0x00RRGGBB.
 pub type Rgb = u32;

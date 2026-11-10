@@ -62,6 +62,22 @@ impl Pen<'_, '_> {
         f.draw(self.sf, x, y, &s, c, k);
     }
 
+    /// How wide `s` is at `size`, in logical pixels, set as it would be with room to spare.
+    pub fn width(&self, s: &str, size: f32, bold: bool) -> f32 {
+        let (f, k) = self.fonts.pick(size * self.v.scale, bold);
+        f.measure(s, k) as f32 / self.v.scale
+    }
+
+    /// `s` from the logical `x`, centred up and down in `r`, never shrunk or cut: for a line
+    /// built a piece at a time, each from where the last ended. The logical x after it.
+    pub fn run(&mut self, x: f32, r: Rect, s: &str, size: f32, bold: bool, c: Rgb) -> f32 {
+        let d = self.v.rect(r);
+        let (f, k) = self.fonts.pick(size * self.v.scale, bold);
+        let y = d.y + (d.h - (f.height * k) as i32) / 2;
+        let end = f.draw(self.sf, self.v.x(x), y, s, c, k);
+        self.v.logical(end, 0).0
+    }
+
     /// `s` running up `r` from its bottom, as a mixer's names run beside its meters; the font
     /// as tall as `r` is wide, cut short with … to fit.
     pub fn text_up(&mut self, r: Rect, s: &str, c: Rgb) {
@@ -98,13 +114,18 @@ impl Pen<'_, '_> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::Image;
     use crate::font::CONSOLE_FONTS;
     use std::path::Path;
 
-    fn fonts() -> Option<Fonts> {
+    /// Whether any pixel in `r` is exactly `c`, on an image drawn one to one.
+    pub(crate) fn has(img: &Image, r: Rect, c: Rgb) -> bool {
+        (r.y..r.bottom()).any(|y| (r.x..r.right()).any(|x| img.px[y as usize * img.w + x as usize] == c))
+    }
+
+    pub(crate) fn fonts() -> Option<Fonts> {
         Path::new(CONSOLE_FONTS)
             .join("Uni2-Terminus16.psf.gz")
             .exists()
@@ -158,5 +179,21 @@ mod tests {
         let p = Pen { sf: &mut sf, fonts: &fs, v: View::fit(10, 10, 10, 10) };
         assert_eq!(p.first_of(&["\u{e000}", ">"]), ">");
         assert_eq!(p.first_of(&["A", ">"]), "A");
+    }
+
+    #[test]
+    fn a_run_carries_on_from_where_the_last_ended() {
+        let Some(fs) = fonts() else { return };
+        let mut img = Image::new(400, 40);
+        let mut sf = img.surface();
+        let mut p = Pen { sf: &mut sf, fonts: &fs, v: View::fit(200, 20, 400, 40) };
+        let all = Rect::new(0, 0, 200, 20);
+        let w = p.width("take ", 12.0, false);
+        let x = p.run(10.0, all, "take ", 12.0, false, 0xffffff);
+        assert!((x - 10.0 - w).abs() < 0.01, "{x} {w}");
+        let end = p.run(x, all, "003", 12.0, false, 0xff0000);
+        assert!((end - x - p.width("003", 12.0, false)).abs() < 0.01);
+        let (first, last) = ink_x(&img).unwrap();
+        assert!(first >= 20 && last < (end * 2.0) as usize, "{first} {last}");
     }
 }

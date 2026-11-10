@@ -4,6 +4,48 @@ What changed in an interface or a behaviour, newest first: a line for each, nami
 what a tool has to do about it. Read it before moving a pin. Begun 2026-11-07; for before that,
 the git log.
 
+## 2026-11-10
+
+Brought by dexter-irma, the third panel, ahead of Tape (Warren, 2026-11-09): the panel's half of
+the keys and the bar (`../suite-audio-libs/PLAN.md`, item 5), and the parts `../STYLE.md` didn't
+have for a panel yet. Drawn in the dark skin by its names. None has been on a real screen.
+
+- `lp-keys`: `common`, the family's common keys by value (`KEYS`, `means`), compared with
+  `page-kit.js`'s `KEYS` by a test, as the dark skin is. `Declared` is one entry of a tool's
+  `keys.json`, and `check` holds a tool's list to the table: a common key that does something
+  else needs its `differs`. `Key::name` names a key as a page does (`"j"`, `" "`, `"Escape"`,
+  `"ArrowLeft"`), so one `keys.json` serves a page and a panel. `shown` is how `?` shows a key.
+  `code_of` is the key that types a character, and `every` is every key with a name, for a
+  panel's test that no key does something it doesn't list. A panel reads its `keys.json` itself:
+  nothing here reads JSON. Nothing to do, until a panel takes up the table.
+- `lp-panel`: `bar::Bar`, the command bar along a panel's footer, acting as `kitBar` does on a
+  page: a question answered with `y`, an offer the next key decides, a line typed, a choice
+  narrowed by typing, with levels. It gives back an `Act` naming the tool's own id where the
+  page's bar calls a function. `Bar::screen` makes the levels from the keys drawn. A panel
+  hands it every key first.
+- `lp-panel`: `line::Line`, a line being typed with a caret in it, for the bar and for a form's
+  field.
+- `lp-panel`: `keys::keys_over`, `?`: a tool's keys over the screen, by screen, from its list.
+- `lp-panel`: `snapshot::keys_of` types every character a US keyboard has, with Shift where it
+  needs it (`:` and `]` weren't keys before), and names `{home}`, `{end}` and `{delete}`.
+  `key_code` finds a shifted character's key too. A test that counted on `]` being refused
+  wants another character.
+- `lp-paint`: `Hits`, where a click can land, by id, the last drawn on top, as the page kit's
+  `HITS`. A key in it carries the bar's name for it and its section. `bar_name` makes that name
+  from a label.
+- `lp-paint`: `Pen::key` and `KeyLook`, the family's key: plain, lit, or not for now.
+- `lp-paint`: `Pen::field`, `Field` and `FieldState`, a form's field: a label and a value in a
+  box, plain, under the cursor, being typed in with a caret, or waiting in amber.
+- `lp-paint`: `List`, `Column`, `Cell` and `ListLook`, a list: rows in columns under their
+  heads, the chosen row lit, scrolled as little as keeps it in view, a mark for where a long
+  list is, each row somewhere to click.
+- `lp-paint`: `Pen::wave`, `Wave`, `Scale` and `Marker`, a waveform: the lowest and highest
+  sample a column, straight or in dB down to a floor, with the times along the bottom, places
+  marked, and a curve over the dB picture. `Wave::time_at` takes a click back to a time. For
+  looking: nothing plays from it. Tape draws one of its own, and could move to this.
+- `lp-paint`: `Pen::run` and `Pen::width`, a line of text built a piece at a time.
+- `lp-panel`: an example, `parts`, draws every part to a PNG.
+
 ## 2026-11-07
 
 - `lp-panel`: `snapshot::keys_of` names four more keys, `{tab}`, `{backspace}`, `{pgup}` and

@@ -12,6 +12,9 @@
 //! [`Panel`]. Moved here from dexter-kms's `main.rs` (2026-11-07), for Tape's panel and the
 //! ones after it. [`snapshot`] runs the same panel without a screen, for its tests.
 
+pub mod bar;
+pub mod keys;
+pub mod line;
 pub mod snapshot;
 
 use lp_keys::{Hotplug, Key, Keyboards, PointerKind, Pointers};

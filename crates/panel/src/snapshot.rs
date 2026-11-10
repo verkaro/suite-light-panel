@@ -79,20 +79,23 @@ impl Script {
     }
 }
 
-/// Keys as typed: each character one (a capital, `+` or `?` with Shift), or a key named in
-/// braces: `{enter}` `{esc}` `{tab}` `{backspace}` `{left}` `{right}` `{up}` `{down}`
-/// `{pgup}` `{pgdn}`. Each a press.
+/// Keys as typed: each character one, with Shift where a US keyboard needs it, or a key
+/// named in braces: `{enter}` `{esc}` `{tab}` `{backspace}` `{delete}` `{left}` `{right}`
+/// `{up}` `{down}` `{home}` `{end}` `{pgup}` `{pgdn}`. Each a press.
 pub fn keys_of(s: &str) -> Result<Vec<Key>, String> {
     let mut out = Vec::new();
     let mut it = s.chars();
     while let Some(c) = it.next() {
-        let (code, ch) = if c == '{' {
+        let (code, shift, ch) = if c == '{' {
             let name: String = it.by_ref().take_while(|&c| c != '}').collect();
             let code = match name.as_str() {
                 "enter" => code::ENTER,
                 "esc" => code::ESC,
                 "tab" => code::TAB,
                 "backspace" => code::BACKSPACE,
+                "delete" => code::DELETE,
+                "home" => code::HOME,
+                "end" => code::END,
                 "pgup" => code::PAGEUP,
                 "pgdn" => code::PAGEDOWN,
                 "left" => code::LEFT,
@@ -101,32 +104,19 @@ pub fn keys_of(s: &str) -> Result<Vec<Key>, String> {
                 "down" => code::DOWN,
                 _ => return Err(format!("--keys: no key {{{name}}}")),
             };
-            (code, None)
+            (code, false, None)
         } else {
-            let code = key_code(c.to_ascii_lowercase()).ok_or(format!("--keys: no key for {c:?}"))?;
-            (code, Some(c))
+            let (code, shift) = lp_keys::common::code_of(c).ok_or(format!("--keys: no key for {c:?}"))?;
+            (code, shift, Some(c))
         };
-        let shift = ch.is_some_and(|c| c.is_ascii_uppercase() || c == '+' || c == '?');
         out.push(Key { code, state: State::Press, mods: Mods { shift, ..Default::default() }, ch });
     }
     Ok(out)
 }
 
-/// A character's key on a US keyboard: letters, digits, space and - = + , . / ? \.
+/// A character's key on a US keyboard, whether or not it takes Shift.
 pub fn key_code(c: char) -> Option<u16> {
-    const ROWS: [(&str, u16); 3] = [("qwertyuiop", 16), ("asdfghjkl", 30), ("zxcvbnm", 44)];
-    match c {
-        ' ' => Some(code::SPACE),
-        '-' => Some(12),
-        '=' | '+' => Some(13),
-        ',' => Some(51),
-        '.' => Some(52),
-        '/' | '?' => Some(53),
-        '\\' => Some(43),
-        '0' => Some(11),
-        '1'..='9' => Some(c as u16 - '1' as u16 + 2),
-        _ => ROWS.iter().find_map(|(row, at)| row.find(c).map(|i| at + i as u16)),
-    }
+    lp_keys::common::code_of(c).map(|(code, _)| code)
 }
 
 /// Plays `script` on `p`, then draws it to the PNG at `path`, the pointer's arrow where the
@@ -298,7 +288,12 @@ mod tests {
         let named: Vec<_> = keys_of("{tab}{backspace}{pgup}{pgdn}").unwrap().iter().map(|k| k.code).collect();
         assert_eq!(named, [code::TAB, code::BACKSPACE, code::PAGEUP, code::PAGEDOWN]);
         assert_eq!(keys_of("{f13}"), Err("--keys: no key {f13}".into()));
-        assert_eq!(keys_of("]"), Err("--keys: no key for ']'".into()));
+        assert_eq!(keys_of("é"), Err("--keys: no key for 'é'".into()));
+        // Everything a US keyboard types, Shift held where it's needed.
+        let typed: Vec<_> = keys_of(":]~").unwrap().iter().map(|k| (k.code, k.ch, k.mods.shift)).collect();
+        assert_eq!(typed, [(39, Some(':'), true), (27, Some(']'), false), (41, Some('~'), true)]);
+        let named: Vec<_> = keys_of("{home}{end}{delete}").unwrap().iter().map(|k| k.code).collect();
+        assert_eq!(named, [code::HOME, code::END, code::DELETE]);
     }
 
     #[test]

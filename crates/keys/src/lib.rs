@@ -16,6 +16,7 @@
 //! [`Pointers`]: the mice, touchpads and touchscreens, read the same way. [`Hotplug`]: the
 //! devices plugged in later, for [`Keyboards::add`] and [`Pointers::add`].
 
+pub mod common;
 mod hotplug;
 mod pointer;
 pub use hotplug::{Hotplug, INPUT_DIR};

@@ -30,7 +30,9 @@ lp-kms = { git = "https://github.com/verkaro/suite-light-panel", rev = "COMMIT" 
   a virtual machine's), as one position on the screen, with clicks and the wheel. `Hotplug`:
   `/dev/input` watched with inotify (no udev), so a keyboard or pointer plugged in later is
   taken (`Keyboards::add`, `Pointers::add`) once udev has given it to the `input` group; one
-  unplugged is dropped when reading it fails. Only `libc`.
+  unplugged is dropped when reading it fails. `common`: the family's common keys, held by
+  value and compared with `page-kit.js`, a key named as a page names it, and a tool's own list
+  of keys held to the table. Only `libc`.
 - `lp-paint`: drawing into pixels: rectangles, rounded ones, discs, rings and arcs (a dial's
   sweep) with smoothed edges, lines, glows, text in the console's own Terminus bitmap fonts (PSF, read at run time from
   `/usr/share/consolefonts`), the family's dark skin (`dark`: the colours `page-kit.js` gives
@@ -41,6 +43,10 @@ lp-kms = { git = "https://github.com/verkaro/suite-light-panel", rev = "COMMIT" 
   - `disc_led`: one LED a track, white brighter as it's louder, then yellow, then red, held with
     the peak, ringed when armed, recording or clipped (Dexter's remote). For a small screen, or
     many tracks: 64 fit on 800 × 480.
+
+  And the parts a panel is made of, in the dark skin: a key (`Pen::key`), a form's field
+  (`Pen::field`), a list (`List`), a waveform, straight or in dB (`Pen::wave`), and `Hits`,
+  where a click can land.
 
   Draw into an `Image` in memory and copy it to the screen once a frame
   (`Surface::copy_from`): a KMS buffer is slow to read, and blending reads.
@@ -53,7 +59,10 @@ lp-kms = { git = "https://github.com/verkaro/suite-light-panel", rev = "COMMIT" 
   changed, and everything put back on the way out. Under muntin, its shared key quits
   (`Options::frame_key`). `snapshot` runs the same panel with no screen, for its tests: the
   tool's `--snapshot PNG` with `--size`, `--click`, `--drag` and `--keys`, played through the
-  panel's own key and pointer handling, then drawn once.
+  panel's own key and pointer handling, then drawn once. What takes keys is here too: the
+  command bar along the footer (`bar::Bar`), a line being typed (`line::Line`), and `?`, a
+  tool's keys over the screen (`keys::keys_over`). `cargo run -p lp-panel --example parts --
+  out.png` draws every part.
 
 ## Needs
 
@@ -84,3 +93,7 @@ real screen. Not yet: a second tool built on these crates.
 `lp-panel` (2026-11-07) is dexter-kms's own loop and snapshot harness moved here, with its
 `Pen` and palette into `lp-paint`. dexter-kms's snapshots draw the same after the move, byte
 for byte, and on a real screen it looks and acts as before (Warren, 2026-11-07).
+
+The keys, the command bar, `?`, and a key, a field, a list and a waveform (2026-11-10) came
+with dexter-irma's panel. They're tested by what they draw into memory. Not yet: any of them on
+a real screen.
