@@ -34,7 +34,17 @@ commit. The family's rules are `../CLAUDE.md`.
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test
+cargo test -p lp-paint dial        # one crate, tests whose names hold "dial"
+cargo run -p lp-panel --example parts -- out.png   # every part, drawn to a PNG
 ```
+
+The crates live in `crates/kms`, `crates/keys`, `crates/paint` and `crates/panel`; their tests
+are unit tests beside the code. Two kinds pass quietly when what they need is missing, so a
+green run here can hide them:
+- the comparisons with `page-kit.js` (`lp_keys::common`, `lp_paint::dark`) read
+  `../suite-audio-libs`, and only print a line when it isn't beside this suite;
+- the test of the system's Terminus reads `/usr/share/consolefonts` (Debian's `console-setup-linux`, which CI
+  installs).
 
 Running anything on a real screen needs membership of the `video` and `input` groups, a real
 console (Ctrl+Alt+F*n*, not ssh), and no display server holding the card. Changes are proved on
@@ -49,6 +59,11 @@ records what has been confirmed that way.
   (`Surface::copy_from`). Reading a KMS buffer is slow, and blending has to read.
 - **Grabbing keys:** never grab a keyboard while a key is down on it. The console would never
   see the key's release and would stay stuck, with Ctrl or Alt held.
+
+## Where a session resumes
+
+`PLAN.md` says what's next (from 2026-11-11, the saver of `../Saver.md`), and `CHANGES.md` what's
+changed.
 
 ## Rules shared with the audio suite (Warren, 2026-11-11)
 
