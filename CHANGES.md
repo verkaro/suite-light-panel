@@ -6,6 +6,9 @@ the git log.
 
 ## 2026-11-10
 
+- `lp-paint`: `Dial::inner`, a second ring inside the first: the signal after the knob's gain,
+  the outer ring then what comes in (focusrite-ctrl, Warren's ask). None draws one ring, as
+  before. A `Dial { … }` written out in full needs `inner: None`.
 - `lp-paint`: `Dial`, drawn with `Pen::dial`, written here for focusrite-ctrl, the second panel
   to want a dial (dexter-kms has its own). It has a sweep of three quarters of a turn, a mark (0
   dB), a pointer, its label over it and its value under it, and a ring outside it lit by the

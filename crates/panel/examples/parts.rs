@@ -123,10 +123,11 @@ fn main() -> Result<(), String> {
         dial("S/PDIF 1", "+12.0", Some(12.0), Some(Disc::Clip)),
         Dial { held: true, ..dial("MONITOR L", "-12.0", Some(-12.0), None) },
         Dial { typing: Some("-6.5"), ..dial("MIX A", "-3.0", Some(-3.0), None) },
+        Dial { inner: Some(Disc::Caution), ..dial("PCM 2", "+6.0", Some(6.0), Some(Disc::Signal(0.8))) },
     ];
     hits.section("MIX A");
     for (i, d) in dials.iter().enumerate() {
-        pen.dial(&mut hits, Rect::new(994 + 57 * i as i32, 52, 56, 100), d, &format!("dial{i}"));
+        pen.dial(&mut hits, Rect::new(994 + 50 * i as i32, 52, 48, 100), d, &format!("dial{i}"));
     }
     hits.section("");
 

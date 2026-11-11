@@ -75,6 +75,9 @@ pub struct Dial<'a> {
     pub mark: Option<f32>,
     /// The signal it governs. None: not metered, so no ring.
     pub ring: Option<Disc>,
+    /// A second ring inside the first: the signal after the knob's gain (Warren, 2026-11-10,
+    /// for focusrite-ctrl). The outer ring is then what comes in. None: one ring.
+    pub inner: Option<Disc>,
     /// Held by the interface's own knob (a line on HW): dimmed, `KNOB` said, not to be turned.
     pub held: bool,
     /// The hand is on it.
@@ -105,6 +108,11 @@ const CLIP_OUT: f32 = 1.0;
 const CLIP_T: f32 = 0.06;
 const RING_OUT: f32 = 0.9;
 const RING_T: f32 = 0.12;
+// With a second ring, the two share the first's room: what comes in outside, after the knob
+// inside.
+const TWO_OUT: f32 = 0.93;
+const TWO_T: f32 = 0.08;
+const TWO_IN: f32 = 0.83;
 const SWEEP_OUT: f32 = 0.72;
 const SWEEP_T: f32 = 0.09;
 const BODY: f32 = 0.58;
@@ -132,11 +140,22 @@ impl Pen<'_, '_> {
         let rad = lrad * self.v.scale;
         let dim = |c| if d.held { mix(dark::PANEL, c, 0.45) } else { c };
 
-        if let Some(disc) = d.ring {
-            if disc == Disc::Clip {
-                self.sf.ring(cx, cy, rad * CLIP_OUT, (rad * CLIP_T).max(1.0), disc_color(Disc::Hot));
+        match (d.ring, d.inner) {
+            (Some(disc), None) => {
+                if disc == Disc::Clip {
+                    self.sf.ring(cx, cy, rad * CLIP_OUT, (rad * CLIP_T).max(1.0), disc_color(Disc::Hot));
+                }
+                self.sf.ring(cx, cy, rad * RING_OUT, (rad * RING_T).max(1.5), disc_color(disc));
             }
-            self.sf.ring(cx, cy, rad * RING_OUT, (rad * RING_T).max(1.5), disc_color(disc));
+            (outer, Some(inner)) => {
+                // A latched clip of what comes in: the outer ring, red, a hair thicker.
+                if let Some(o) = outer {
+                    let t = if o == Disc::Clip { TWO_T * 1.3 } else { TWO_T };
+                    self.sf.ring(cx, cy, rad * TWO_OUT, (rad * t).max(1.5), disc_color(o));
+                }
+                self.sf.ring(cx, cy, rad * TWO_IN, (rad * TWO_T).max(1.5), disc_color(inner));
+            }
+            (None, None) => {}
         }
 
         let sweep = (DIAL_A0, DIAL_A0 + DIAL_SWEEP);
@@ -300,6 +319,24 @@ mod tests {
         let sweep = SWEEP_OUT - SWEEP_T / 2.0;
         assert_eq!(at(&img, sweep), mix(dark::PANEL, dark::DIM, 0.45));
         assert_eq!(hits.at(40.0, 54.0), None, "a click passes it by");
+    }
+
+    #[test]
+    fn two_rings_in_and_after_the_knob() {
+        let d = Dial {
+            label: "PCM 1",
+            value: "-6.0",
+            pos: 0.7,
+            ring: Some(Disc::Hot),
+            inner: Some(Disc::Caution),
+            ..Dial::default()
+        };
+        let Some((img, _)) = drawn(&d) else { return };
+        assert_eq!(at(&img, TWO_OUT - TWO_T / 2.0), disc_color(Disc::Hot), "what comes in, outside");
+        assert_eq!(at(&img, TWO_IN - TWO_T / 2.0), disc_color(Disc::Caution), "after the knob, inside");
+        let d = Dial { ring: None, inner: Some(Disc::Off), ..d };
+        let (img, _) = drawn(&d).unwrap();
+        assert_eq!(at(&img, TWO_OUT - TWO_T / 2.0), 0, "nothing metered coming in");
     }
 
     #[test]
