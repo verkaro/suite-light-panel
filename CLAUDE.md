@@ -65,7 +65,9 @@ records what has been confirmed that way.
     colours are page-kit's dark skin by value, and a test compares them with `page-kit.js`
     when `../suite-audio-libs` is beside this suite, so the two can't drift apart unseen.
 
-  Still to come, when a second panel wants them: widgets such as the fader law and the dial.
+  Still to come, when a second panel wants it: the fader law. The dial came with
+  focusrite-ctrl (2026-11-10), the second panel to want one, written here rather than moved
+  from dexter-kms, whose own dial can move onto it at its own pace.
 - **The keys, the bar and the library's parts came with dexter-irma's panel** (2026-11-10,
   `CHANGES.md`): the common keys held by value and compared with `page-kit.js`, the command
   bar, `?`, and a key, a field, a list and a waveform. They draw in `dark` by its names, as

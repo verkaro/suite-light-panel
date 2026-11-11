@@ -6,6 +6,17 @@ the git log.
 
 ## 2026-11-10
 
+- `lp-paint`: `Dial`, drawn with `Pen::dial`, written here for focusrite-ctrl, the second panel
+  to want a dial (dexter-kms has its own). It has a sweep of three quarters of a turn, a mark (0
+  dB), a pointer, its label over it and its value under it, and a ring outside it lit by the
+  signal: a `Disc`, in the disc's own colours (`disc_led` and the ring now share them), with a
+  second ring while a clip is latched, and no ring where nothing's metered. `held` dims it and
+  says `KNOB` (a line on the interface's knob), `cursor` lights the sweep amber, `typing` shows
+  what's typed in a readout. It's listed in the bar by its label; `dial_part` says whether a
+  click fell on the knob or the ring. `knob_pos` and `knob_db` are the law: off at 0, −40 dB a
+  quarter of the way, then even in dB to the top. Nothing to do; dexter-kms may move its own
+  dial onto it (`../HANDOFFS.md`).
+
 Brought by dexter-irma, the third panel, ahead of Tape (Warren, 2026-11-09): the panel's half of
 the keys and the bar (`../suite-audio-libs/PLAN.md`, item 5), and the parts `../STYLE.md` didn't
 have for a panel yet. Drawn in the dark skin by its names. None has been on a real screen.

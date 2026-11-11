@@ -8,8 +8,8 @@
 
 use lp_keys::common::{Declared, KEYS};
 use lp_paint::{
-    Align, Cell, Column, Field, FieldState, Fonts, Hits, Image, KeyLook, List, ListLook, Marker, Pen, Rect,
-    Scale, View, Wave, dark, write_png,
+    Align, Cell, Column, Dial, Disc, Field, FieldState, Fonts, Hits, Image, KeyLook, List, ListLook, Marker,
+    Pen, Rect, Scale, View, Wave, dark, knob_pos, write_png,
 };
 use lp_panel::bar::{Bar, Opt};
 use lp_panel::keys::keys_over;
@@ -102,6 +102,33 @@ fn main() -> Result<(), String> {
         "keys",
         KeyLook { name: Some("keys"), ..KeyLook::default() },
     );
+
+    // Dials, a mix's gain (−80 to +12) with 0 dB marked: off and silent, a quiet signal, a full
+    // one under the hand, a caution, a clip latched, a line on the interface's knob, and one
+    // being typed in. The last two have no meter, so no ring.
+    let zero = Some(knob_pos(Some(0.0), -80.0, 12.0));
+    let dial = |label, value, db: Option<f64>, ring| Dial {
+        label,
+        value,
+        pos: knob_pos(db, -80.0, 12.0),
+        mark: zero,
+        ring,
+        ..Dial::default()
+    };
+    let dials = [
+        dial("ADAT 3", "OFF", None, Some(Disc::Off)),
+        dial("ANALOGUE 1", "-20.0", Some(-20.0), Some(Disc::Signal(0.4))),
+        Dial { cursor: true, ..dial("PCM 1", "0.0", Some(0.0), Some(Disc::Signal(1.0))) },
+        dial("ANALOGUE 2", "+4.0", Some(4.0), Some(Disc::Caution)),
+        dial("S/PDIF 1", "+12.0", Some(12.0), Some(Disc::Clip)),
+        Dial { held: true, ..dial("MONITOR L", "-12.0", Some(-12.0), None) },
+        Dial { typing: Some("-6.5"), ..dial("MIX A", "-3.0", Some(-3.0), None) },
+    ];
+    hits.section("MIX A");
+    for (i, d) in dials.iter().enumerate() {
+        pen.dial(&mut hits, Rect::new(994 + 57 * i as i32, 52, 56, 100), d, &format!("dial{i}"));
+    }
+    hits.section("");
 
     // A waveform, straight and in dB, of a click and a fall from it.
     let n = 1200;

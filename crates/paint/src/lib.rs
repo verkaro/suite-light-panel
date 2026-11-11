@@ -1,5 +1,6 @@
 //! Drawing a panel into a block of pixels: rectangles, rounded ones, discs with a glow, text in
-//! the console's own bitmap fonts, and the family's two meters (the LED ladder and the LED disc).
+//! the console's own bitmap fonts, the family's two meters (the LED ladder and the LED disc),
+//! and a dial with its signal ring.
 //! Pixels are 0x00RRGGBB in rows of `stride`, as a KMS dumb buffer is (`lp-kms`), or an
 //! [`Image`] in memory, written out as PNG to look at.
 //!
@@ -8,6 +9,7 @@
 //! [`Pen`] draws through one.
 
 pub mod dark;
+mod dial;
 mod font;
 mod hits;
 mod list;
@@ -17,6 +19,7 @@ mod pen;
 mod png;
 mod wave;
 
+pub use dial::{DIAL_A0, DIAL_SWEEP, Dial, DialPart, KNOB_KNEE_DB, dial_angle, dial_part, knob_db, knob_pos};
 pub use font::{Font, Fonts};
 pub use hits::{Hit, Hits, bar_name};
 pub use list::{Cell, Column, List, ListLook};

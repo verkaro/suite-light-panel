@@ -45,8 +45,9 @@ lp-kms = { git = "https://github.com/verkaro/suite-light-panel", rev = "COMMIT" 
     many tracks: 64 fit on 800 × 480.
 
   And the parts a panel is made of, in the dark skin: a key (`Pen::key`), a form's field
-  (`Pen::field`), a list (`List`), a waveform, straight or in dB (`Pen::wave`), and `Hits`,
-  where a click can land.
+  (`Pen::field`), a list (`List`), a waveform, straight or in dB (`Pen::wave`), a dial with a
+  ring lit by its signal in the disc's colours (`Pen::dial`, with `knob_pos` for its law), and
+  `Hits`, where a click can land.
 
   Draw into an `Image` in memory and copy it to the screen once a frame
   (`Surface::copy_from`): a KMS buffer is slow to read, and blending reads.

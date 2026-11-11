@@ -126,6 +126,16 @@ const LED_CAUTION: Rgb = hex("#ffd23f");
 const LED_HOT: Rgb = hex("#ff4b3e");
 const WELL: Rgb = 0x000000;
 
+/// A disc's colour, and a dial's ring's ([`crate::Dial`]): one place, so the two can't drift.
+pub(crate) fn disc_color(d: Disc) -> Rgb {
+    match d {
+        Disc::Off => LED_OFF,
+        Disc::Signal(a) => mix(LED_OFF, LED_WHITE, a),
+        Disc::Caution => LED_CAUTION,
+        Disc::Hot | Disc::Clip => LED_HOT,
+    }
+}
+
 /// A disc LED of radius `r` centred at (cx, cy), device pixels, with a dark well round it and a
 /// ring outside that when `ring` is given (armed, recording, clipped).
 pub fn disc_led(s: &mut Surface, cx: f32, cy: f32, r: f32, d: Disc, ring: Option<Rgb>) {
@@ -135,12 +145,13 @@ pub fn disc_led(s: &mut Surface, cx: f32, cy: f32, r: f32, d: Disc, ring: Option
         s.ring(cx, cy, r + 2.0 * t, t, rc);
     }
     s.disc(cx, cy, r + t, WELL);
-    let (c, glow) = match d {
-        Disc::Off => (LED_OFF, 0.0),
-        Disc::Signal(a) => (mix(LED_OFF, LED_WHITE, a), 0.15 + 0.6 * a),
-        Disc::Caution => (LED_CAUTION, 0.8),
-        Disc::Hot => (LED_HOT, 0.9),
-        Disc::Clip => (LED_HOT, 1.0),
+    let c = disc_color(d);
+    let glow = match d {
+        Disc::Off => 0.0,
+        Disc::Signal(a) => 0.15 + 0.6 * a,
+        Disc::Caution => 0.8,
+        Disc::Hot => 0.9,
+        Disc::Clip => 1.0,
     };
     if glow > 0.0 {
         s.glow(cx, cy, r, r * 0.9 * glow, c, 0.45);
