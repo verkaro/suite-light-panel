@@ -50,6 +50,14 @@ records what has been confirmed that way.
 - **Grabbing keys:** never grab a keyboard while a key is down on it. The console would never
   see the key's release and would stay stuck, with Ctrl or Alt held.
 
+## Rules shared with the audio suite (Warren, 2026-11-11)
+
+- **One of each thing:** within the suite there is one copy of anything. A second found is fixed
+  in the session that finds it, with a `CHANGES.md` line, never invited to move "when it wants".
+- **A session here ends with `../family.sh check suite-light-panel`:** the panels patched to this
+  folder are run before it's pushed.
+- **A panel under muntin** follows the checklist in `../STYLE.md`, "A panel under muntin".
+
 ## How it grows (Warren, 2026-11-07)
 
 - **A tool's panel lives in the tool,** as a crate or binary of its own there: what it shows,
