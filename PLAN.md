@@ -22,7 +22,7 @@ saver goes in both, so:
    pixels.
    - `orbit(n) -> (i32, i32)`: step `n` of the path. Up to 4 pixels each way, a pixel a step,
      round a square, back to 0, 0 (32 steps; about an hour and a half at a step every 3
-     minutes). Figures to try, not settled.
+     minutes).
    - `offset(now: Instant) -> (i32, i32)`: the clock passed in, so a test steps it without
      waiting. (0, 0) while it's off.
    - `due(now)`: when the next step falls, so a loop knows to present again without the panel
@@ -45,13 +45,13 @@ saver goes in both, so:
 - The setting: a missing file, on, off, written and read back, under a scratch
   `XDG_STATE_HOME`.
 
-### To ask Warren at the start
+### Settled (Warren, 2026-11-11)
 
-- **The file's name and home.** `$XDG_STATE_HOME/muntin/saver` (muntin owns the button), or
-  one of the suite's own, say `$XDG_STATE_HOME/light-panel/saver`.
-- **With no file yet:** on or off. A saver is presumably on until turned off; the handoff
-  settles only that off stays off across a restart.
-- **The path's shape:** a square or a circle, and whether 4 pixels and 3 minutes stand.
+- **The file:** `$XDG_STATE_HOME/muntin/saver` (else `~/.local/state/muntin/saver`), since
+  muntin owns the button. A panel only reads it.
+- **With no file yet, it's on.** Off stays off across a restart, as the handoff says.
+- **The path:** a square, up to 4 pixels each way, a step every 3 minutes. A real screen may
+  still move the figures (Warren's gate).
 
 ### After it
 
