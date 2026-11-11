@@ -11,7 +11,7 @@
 use crate::{Key, code};
 
 /// Each common key and what it means, in the page's order.
-pub const KEYS: [(&str, &str); 23] = [
+pub const KEYS: [(&str, &str); 27] = [
     ("?", "the keys, over the screen"),
     (":", "the bar: what this screen does"),
     ("Escape", "back out of what's open"),
@@ -35,6 +35,10 @@ pub const KEYS: [(&str, &str); 23] = [
     ("i", "start changing this in place"),
     ("Enter", "open or choose; keep what's typed"),
     ("y", "yes to a question"),
+    ("m", "mark here"),
+    ("-", "mute"),
+    ("=", "solo"),
+    ("o", "the loop on or off"),
 ];
 
 /// What the family means by `key`, if it's a common one.
