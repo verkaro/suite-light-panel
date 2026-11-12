@@ -15,6 +15,7 @@
 pub mod bar;
 pub mod keys;
 pub mod line;
+pub mod sheet;
 pub mod snapshot;
 
 use lp_keys::{Hotplug, Key, Keyboards, PointerKind, Pointers};

@@ -4,6 +4,14 @@ What changed in an interface or a behaviour, newest first: a line for each, nami
 what a tool has to do about it. Read it before moving a pin. Begun 2026-11-07; for before that,
 the git log.
 
+## 2026-11-12
+
+- `lp-panel`: `sheet`, the FROM, verb, TO sheet (`Picker`, `Lists`, `Word`, `Line`, `Did`),
+  moved in from focusrite-ctrl at `052c497` for jackbay (jackbay's `docs/dev/SPEC.md`, 8.2).
+  Nothing for a tool to do. focusrite-ctrl may move its PATCH onto it at its own pace, its knobs'
+  column staying its own: the picker's `[` at FROM gives the key back for that. The `parts`
+  example draws it, on a taller canvas (1400 × 1340).
+
 ## 2026-11-11
 
 - `lp-keys`: the common keys gain tier 3's letters (Warren, 2026-11-11, `../STYLE.md`, "Keys"):

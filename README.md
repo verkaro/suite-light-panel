@@ -62,7 +62,8 @@ lp-kms = { git = "https://github.com/verkaro/suite-light-panel", rev = "COMMIT" 
   tool's `--snapshot PNG` with `--size`, `--click`, `--drag` and `--keys`, played through the
   panel's own key and pointer handling, then drawn once. What takes keys is here too: the
   command bar along the footer (`bar::Bar`), a line being typed (`line::Line`), and `?`, a
-  tool's keys over the screen (`keys::keys_over`). `cargo run -p lp-panel --example parts --
+  tool's keys over the screen (`keys::keys_over`), and the patch sheet, FROM, the verb and TO
+  with the lines staged (`sheet::Picker`). `cargo run -p lp-panel --example parts --
   out.png` draws every part.
 
 ## Needs

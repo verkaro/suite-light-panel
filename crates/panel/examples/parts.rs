@@ -13,21 +13,22 @@ use lp_paint::{
 };
 use lp_panel::bar::{Bar, Opt};
 use lp_panel::keys::keys_over;
+use lp_panel::sheet::{Line, Lists, Picker, Word};
 use lp_panel::snapshot::keys_of;
 
 fn main() -> Result<(), String> {
     let mut args = std::env::args().skip(1);
     let path = args.next().ok_or("parts PNG [WxH]")?;
-    let size = args.next().unwrap_or("1400x860".into());
+    let size = args.next().unwrap_or("1400x1340".into());
     let (w, h) = size.split_once('x').ok_or("the size is WxH")?;
     let (w, h): (usize, usize) = (w.parse().map_err(|_| "W")?, h.parse().map_err(|_| "H")?);
     let fonts = Fonts::terminus(None).map_err(|e| e.to_string())?;
     let mut img = Image::new(w, h);
     let mut sf = img.surface();
     sf.clear(dark::PAGE);
-    let mut pen = Pen { sf: &mut sf, fonts: &fonts, v: View::fit(1400, 860, w, h) };
+    let mut pen = Pen { sf: &mut sf, fonts: &fonts, v: View::fit(1400, 1340, w, h) };
     let mut hits = Hits::new();
-    pen.fill(Rect::new(0, 0, 1400, 860), dark::BG);
+    pen.fill(Rect::new(0, 0, 1400, 1340), dark::BG);
 
     // A list, the hand on it.
     pen.fill(Rect::new(10, 10, 560, 400), dark::PANEL);
@@ -179,6 +180,43 @@ fn main() -> Result<(), String> {
             "?  the keys     :  what this screen does",
         );
     }
+
+    // The sheet: a source picked, one destination fed, a line staged to a speaker.
+    let word = |id: &str, label: &str, small: &str, fed: bool, staged: bool| Word {
+        id: id.into(),
+        label: label.into(),
+        small: small.into(),
+        fed,
+        staged,
+    };
+    let from = [
+        word("0", "out_L/R", "scape", false, false),
+        word("1", "out_1/2", "brr", false, false),
+        word("2", "a very long name for a port, longer than its row", "x", false, false),
+    ];
+    let to =
+        [word("0", "playback_1/2", "system", true, false), word("1", "playback_3/4", "system", false, true)];
+    let staged = [
+        Line { words: "scape out_L/R TO playback_3/4".into(), warn: true },
+        Line { words: "brr out_1/2 CUT playback_1/2".into(), warn: false },
+    ];
+    let lists = Lists {
+        title: "PATCH",
+        from_kinds: &["PROGRAMS", "INPUTS"],
+        to_kinds: &["OUTPUTS", "PROGRAMS"],
+        from: &from,
+        to: &to,
+        staged: &staged,
+        pairs: true,
+        can_undo: false,
+    };
+    let mut picker = Picker::new(false, false);
+    picker.tap("sheet:from:0", &lists);
+    picker.key("]", &lists);
+    picker.key("]", &lists);
+    picker.key("j", &lists);
+    pen.fill(Rect::new(10, 866, 1380, 470), dark::PANEL);
+    picker.draw(&mut pen, &mut hits, Rect::new(236, 876, 928, 456), &lists);
 
     if std::env::var_os("PARTS_KEYS").is_some() {
         let list: Vec<Declared> = KEYS
