@@ -11,6 +11,8 @@ jobs:
   check:
     runs-on: ubuntu-latest
     env:
+      # The slow tests run here (Warren, 2026-11-12); `family.sh check` leaves them out.
+      FAMILY_SLOW: 1
       DEBIAN_FRONTEND: noninteractive
     steps:
       - uses: actions/checkout@v5
