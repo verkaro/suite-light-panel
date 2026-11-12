@@ -57,9 +57,9 @@ pub fn ladder(s: &mut Surface, r: Rect, lit: usize, peak: usize, c: &LedColors, 
     let top = |k: usize| r.bottom() - ((k + 1) as f32 * seg + k as f32 * gap as f32).round() as i32;
     let bottom = |k: usize| r.bottom() - (k as f32 * (seg + gap as f32)).round() as i32;
     let led = |k: usize| Rect::new(r.x, top(k), r.w, bottom(k) - top(k));
-    for k in 0..n {
+    for (k, &unlit) in c.unlit[..n].iter().enumerate() {
         if !on(k) {
-            s.fill(led(k), c.unlit[k]);
+            s.fill(led(k), unlit);
         }
     }
     if glow > 0 {
