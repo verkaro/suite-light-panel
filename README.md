@@ -110,6 +110,10 @@ real screen. Not yet: a second tool built on these crates.
 `Pen` and palette into `lp-paint`. dexter-kms's snapshots draw the same after the move, byte
 for byte, and on a real screen it looks and acts as before (Warren, 2026-11-07).
 
+`lp-term` (2026-11-13): `cargo run --release -p lp-panel --example term`, a terminal standing
+alone. Its gate asked for `bash`, `vim`, `less`, `htop` and `mc` on a real screen; Warren tried
+it and said "all tests successful" (2026-11-13).
+
 The keys, the command bar, `?`, and a key, a field, a list and a waveform (2026-11-10) came
 with dexter-irma's panel. They're tested by what they draw into memory. Not yet: any of them on
 a real screen.

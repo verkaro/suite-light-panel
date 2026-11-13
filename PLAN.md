@@ -71,8 +71,9 @@ Begun 2026-11-13 from transom's session, at Warren's go-ahead; it goes beside th
 ahead of it.
 
 - **Step 1, done 2026-11-13:** the parser and the grid, `Term` (`CHANGES.md`).
-- **Step 2, built 2026-11-13, waiting for Warren's gate:** the PTY, keys to bytes, the grid
+- **Step 2, done 2026-11-13; Warren's gate passed that day ("all tests successful"):** the PTY, keys to bytes, the grid
   drawn (`lp_paint::grid`), and `cargo run -p lp-panel --example term`, a terminal standing
   alone on a screen (`CHANGES.md`). Run headless (`--snapshot`) with `/bin/sh`, `less`, `vim`
-  and `htop` under `env -i` and a scratch `HOME`. The gate: `bash`, `vim`, `less`, `htop`, `mc`
-  on a real screen.
+  and `htop` under `env -i` and a scratch `HOME`. The gate asked for `bash`, `vim`, `less`,
+  `htop` and `mc` on a real screen; Warren ran it with the build installed as
+  `~/.local/bin/term` and said "all tests successful" (2026-11-13).
