@@ -174,6 +174,14 @@ impl Skin {
         }
     }
 
+    /// Where words that warn are drawn: `panel` where red reads on it, 3 or more (dark's, 5.3),
+    /// and the walnut `column` where it doesn't (70s's olive, 2.0; `../STYLE.md`, "Readable,
+    /// measured"). A status strip, a staged line with its `!`, a refusal. What's only a name stays
+    /// on `panel`.
+    pub fn ground(&self) -> Rgb {
+        if contrast(self.red, self.panel) >= 3.0 { self.panel } else { self.column }
+    }
+
     /// `n` LEDs in this skin's bands.
     pub fn leds(&self, n: usize) -> LedColors {
         LedColors::bands(n, self.lit, self.unlit)
@@ -208,6 +216,19 @@ impl Skin {
             ("menu", self.menu),
         ]
     }
+}
+
+/// WCAG 2's contrast ratio of two colours, 1 to 21: 4.5 is the usual floor for small text.
+pub fn contrast(a: Rgb, b: Rgb) -> f32 {
+    fn lum(c: Rgb) -> f32 {
+        let ch = |v: u32| {
+            let v = (v & 0xff) as f32 / 255.0;
+            if v <= 0.040_45 { v / 12.92 } else { ((v + 0.055) / 1.055).powf(2.4) }
+        };
+        0.2126 * ch(c >> 16) + 0.7152 * ch(c >> 8) + 0.0722 * ch(c)
+    }
+    let (x, y) = (lum(a), lum(b));
+    (x.max(y) + 0.05) / (x.min(y) + 0.05)
 }
 
 thread_local! {
@@ -324,6 +345,25 @@ mod tests {
         assert_eq!(s.on_key(s.green), hex("#3f7d1f"));
         assert_eq!(s.on_key(s.tape), s.tape);
         assert_eq!(Skin::DARK.on_key(dark::TEXT), dark::TEXT);
+    }
+
+    #[test]
+    fn contrast_as_style_measured_it_and_the_ground() {
+        // `../STYLE.md`, "Readable, measured", to its one place.
+        let r = |a, b| (contrast(a, b) * 10.0).round() / 10.0;
+        let (d, s) = (&Skin::DARK, &Skin::SEVENTIES);
+        assert_eq!(r(d.text, d.panel), 13.5);
+        assert_eq!(r(d.red, d.panel), 5.3);
+        assert_eq!(r(s.amber, s.panel), 3.2);
+        assert_eq!(r(s.red, s.panel), 2.0);
+        assert_eq!(r(s.amber, s.column), 5.4);
+        assert_eq!(r(s.red, s.column), 3.4);
+        assert_eq!(r(0xffffff, 0), 21.0);
+        assert_eq!(d.ground(), d.panel);
+        assert_eq!(s.ground(), s.column);
+        for k in Skin::ALL {
+            assert!(contrast(k.amber, k.ground()) >= 4.5, "{}", k.name);
+        }
     }
 
     #[test]

@@ -402,7 +402,8 @@ impl Picker {
         pen.text(Rect::new(sx, top + 22, sw, 20), "STAGED", 9.0, true, skin().dim, Align::Left);
         let area = Rect::new(sx, list_top, sw, rows * row_h - 34);
         d.focus(pen, self, area, Col::Staged);
-        pen.rrect(area, 3.0, skin().panel, skin().rule);
+        // Amber, and a warning's `!`, so on the skin's ground: walnut in 70s, where olive is 3.2.
+        pen.rrect(area, 3.0, skin().ground(), skin().rule);
         if lists.staged.is_empty() {
             pen.text(area.inset(8), "nothing staged", 10.0, false, skin().faint, Align::Left);
         }

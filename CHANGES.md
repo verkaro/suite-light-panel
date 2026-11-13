@@ -6,6 +6,13 @@ the git log.
 
 ## 2026-11-13
 
+- `lp-paint`: `contrast(a, b)`, WCAG 2's ratio, and `Skin::ground()`: where words that warn are
+  drawn, the skin's `panel` where red reads on it (dark) and its walnut `column` where it doesn't
+  (70s, where red on olive is 2.0). `lp-panel`'s sheet draws its STAGED box on it, so the staged
+  amber and its `!` are 5.4 on walnut in 70s, not 3.2 on olive; dark draws as before. Asked in
+  `../HANDOFFS.md` (`muntin/Skins.md`'s line), made in jackbay's skin session. **A tool:**
+  nothing. One with a `ground()` or `contrast` of its own (focusrite-ctrl, muntin) may take
+  these at its own pace.
 - `lp-paint`: skins on the console (P9). `Skin`, every solid colour the page names by its name
   (`btn_edge`), the meters' bands and the key colours: `Skin::DARK` (`dark`'s, unchanged) and
   `Skin::SEVENTIES`, held to `page-kit.js` by a test. `Skin::named`, `next`, `on_key` (the page's

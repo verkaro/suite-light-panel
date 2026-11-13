@@ -29,7 +29,7 @@ pub use meter::{Disc, LedColors, disc_led, ladder};
 pub use parts::{Field, FieldState, KeyLook};
 pub use pen::{Align, Pen};
 pub use png::write_png;
-pub use skin::{KeyColors, Skin, set_skin, skin};
+pub use skin::{KeyColors, Skin, contrast, set_skin, skin};
 pub use wave::{Marker, Scale, Wave};
 
 /// 0x00RRGGBB.

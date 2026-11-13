@@ -290,3 +290,21 @@ fn drawn_inside_its_box_at_two_sizes() {
         assert!(names.contains(&n), "{n} in {names:?}");
     }
 }
+
+#[test]
+fn staged_lines_on_the_skins_ground() {
+    let mut f = Fix::new();
+    f.staged = vec![Line { words: "f 0 TO t 1".into(), warn: true }];
+    let p = Picker::new(false, false);
+    for k in lp_paint::Skin::ALL {
+        lp_paint::set_skin(k);
+        let mut hits = Hits::new();
+        let Some(img) = drawn(&p, &f, 928, 456, &mut hits) else { return };
+        // Inside the staged box, right of the line's words: the ground, walnut in 70s.
+        let line = hits.find("sheet:staged:0").unwrap().r;
+        let (x, y) = (line.right() - 4, line.y + line.h / 2);
+        assert_eq!(img.px[y as usize * img.w + x as usize], k.ground(), "{}", k.name);
+        assert!(img.px.contains(&k.amber), "{}", k.name);
+    }
+    lp_paint::set_skin(&lp_paint::Skin::DARK);
+}
