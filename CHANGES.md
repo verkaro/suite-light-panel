@@ -6,6 +6,10 @@ the git log.
 
 ## 2026-11-13
 
+- `lp-term`: `Pty::hangup` sends SIGHUP, then SIGCONT, to every process still in the program's
+  session, not only its group: an interactive shell puts each job in a group of its own, and
+  transom's stop says "its shell and the jobs in it end". One run with `nohup` ignores it; one
+  run with `setsid` has left the session. Nothing for a tool to do.
 - `lp-term`: the PTY and the keys, for transom's step 2. `Pty::spawn(program, args, env, dir,
   cols, rows)`: the program in a session of its own on a pseudo-terminal, with the environment
   given and nothing inherited, nor any fd of the caller's past the three; `read` and `write`

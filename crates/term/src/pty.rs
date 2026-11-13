@@ -166,12 +166,20 @@ impl Pty {
         Ok(self.status)
     }
 
-    /// SIGHUP to the program's process group, so its jobs end with it, as when a terminal's
-    /// line drops.
+    /// SIGHUP, then SIGCONT (so a stopped job sees it), to every process still in the
+    /// program's session, as when a terminal's line drops: the program, and its jobs in groups
+    /// of their own as an interactive shell puts them. One run with `nohup` ignores it; one run
+    /// with `setsid` has left the session.
     pub fn hangup(&self) {
-        if self.status.is_none() {
-            // SAFETY: a signal to the group our child leads.
-            unsafe { libc::kill(-self.pid, libc::SIGHUP) };
+        let mut them: Vec<libc::pid_t> = in_session(self.pid);
+        if self.status.is_none() && !them.contains(&self.pid) {
+            them.push(self.pid);
+        }
+        for sig in [libc::SIGHUP, libc::SIGCONT] {
+            for &p in &them {
+                // SAFETY: a signal to a process of the session our child leads.
+                unsafe { libc::kill(p, sig) };
+            }
         }
     }
 }
@@ -182,6 +190,20 @@ impl Drop for Pty {
         self.hangup();
         let _ = self.try_wait();
     }
+}
+
+/// The processes whose session is `sid`, from `/proc`.
+fn in_session(sid: libc::pid_t) -> Vec<libc::pid_t> {
+    let Ok(dir) = std::fs::read_dir("/proc") else { return Vec::new() };
+    dir.flatten()
+        .filter_map(|e| e.file_name().to_str()?.parse::<libc::pid_t>().ok())
+        .filter(|&p| {
+            // `pid (comm) state ppid pgrp session ...`: the name may hold spaces and brackets.
+            std::fs::read_to_string(format!("/proc/{p}/stat")).ok().is_some_and(|st| {
+                st.rsplit_once(')').and_then(|(_, rest)| rest.split_whitespace().nth(3)?.parse().ok()) == Some(sid)
+            })
+        })
+        .collect()
 }
 
 /// In the child, after the fork: a session of its own, the terminal as its controlling one and
@@ -353,6 +375,28 @@ mod tests {
         let (mut p, _home) = sh("yes | head -n 1", 80, 24);
         assert_eq!(read_until(&p, None), "y\r\n");
         assert_eq!(wait(&mut p), 0);
+    }
+
+    #[test]
+    fn hangup_ends_jobs_in_groups_of_their_own() {
+        // Job control on, as in an interactive shell: the job is in a group of its own.
+        let (mut p, home) = sh("set -m; sleep 30 & echo $! > job; wait", 80, 24);
+        let job = home.0.join("job");
+        let start = Instant::now();
+        let pid: i32 = loop {
+            if let Some(n) = std::fs::read_to_string(&job).ok().and_then(|s| s.trim().parse().ok()) {
+                break n;
+            }
+            assert!(start.elapsed() < Duration::from_secs(10));
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        p.hangup();
+        wait(&mut p);
+        let start = Instant::now();
+        while std::path::Path::new(&format!("/proc/{pid}")).exists() {
+            assert!(start.elapsed() < Duration::from_secs(5), "the job outlived the hangup");
+            std::thread::sleep(Duration::from_millis(10));
+        }
     }
 
     #[test]
