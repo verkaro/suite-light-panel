@@ -7,3 +7,5 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+lp-keys.workspace = true
+libc.workspace = true

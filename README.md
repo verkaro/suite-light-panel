@@ -47,7 +47,8 @@ lp-kms = { git = "https://github.com/verkaro/suite-light-panel", rev = "COMMIT" 
   And the parts a panel is made of, in the dark skin: a key (`Pen::key`), a form's field
   (`Pen::field`), a list (`List`), a waveform, straight or in dB (`Pen::wave`), a dial with a
   ring lit by its signal in the disc's colours (`Pen::dial`, with `knob_pos` for its law), and
-  `Hits`, where a click can land.
+  `Hits`, where a click can land. `grid`: a terminal's rows (`lp-term`), drawn in Terminus at
+  the screen's own pixels, in the sixteen colours named once from the dark skin.
 
   Draw into an `Image` in memory and copy it to the screen once a frame
   (`Surface::copy_from`): a KMS buffer is slow to read, and blending reads.
@@ -73,8 +74,11 @@ lp-kms = { git = "https://github.com/verkaro/suite-light-panel", rev = "COMMIT" 
   asked for waiting to be written back. Its parser is DEC's state machine as vt100.net
   publishes it, in UTF-8; widths are glibc's (`width.sh` writes the table), so the grid counts
   cells as the programs drawing into it do. It holds what `TERM=linux` claims, each of
-  `infocmp linux`'s capabilities tested. Still to come: the PTY, keys to bytes, and the cells
-  drawn in `lp-paint`.
+  `infocmp linux`'s capabilities tested. `Pty` runs a program on a pseudo-terminal of its
+  own, given its environment whole; `key_bytes` is what a key sends, as terminfo's `linux`
+  says. `lp_paint::grid` draws the rows at the screen's own pixels.
+  `cargo run -p lp-panel --example term` is a terminal standing alone on a screen.
+  Needs only `libc` and `lp-keys`.
 
 ## Needs
 

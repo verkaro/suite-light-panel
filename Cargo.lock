@@ -32,6 +32,7 @@ dependencies = [
 name = "lp-paint"
 version = "0.1.0"
 dependencies = [
+ "lp-term",
  "miniz_oxide",
 ]
 
@@ -43,11 +44,16 @@ dependencies = [
  "lp-keys",
  "lp-kms",
  "lp-paint",
+ "lp-term",
 ]
 
 [[package]]
 name = "lp-term"
 version = "0.1.0"
+dependencies = [
+ "libc",
+ "lp-keys",
+]
 
 [[package]]
 name = "miniz_oxide"

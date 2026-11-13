@@ -232,6 +232,25 @@ impl Fonts {
         Ok(Fonts { regular, bold })
     }
 
+    /// For a terminal's grid on a screen of `w` × `h` pixels: the largest regular Terminus that
+    /// still gives at least `cols` × `rows` cells (else the smallest there is), with its bold of
+    /// the same size where there is one. Drawn at its own pixels, never scaled.
+    pub fn for_grid(&self, w: usize, h: usize, cols: usize, rows: usize) -> (&Font, Option<&Font>) {
+        let set = if self.regular.is_empty() { &self.bold } else { &self.regular };
+        let f = set.iter().rev().find(|f| w / f.width >= cols && h / f.height >= rows).unwrap_or(&set[0]);
+        (f, self.bold_of(f))
+    }
+
+    /// The regular Terminus `height` pixels tall (`--font 24`), with its bold, if there is one.
+    pub fn sized(&self, height: usize) -> Option<(&Font, Option<&Font>)> {
+        let set = if self.regular.is_empty() { &self.bold } else { &self.regular };
+        set.iter().find(|f| f.height == height).map(|f| (f, self.bold_of(f)))
+    }
+
+    fn bold_of(&self, f: &Font) -> Option<&Font> {
+        self.bold.iter().find(|b| (b.width, b.height) == (f.width, f.height))
+    }
+
     /// The largest font no taller than `px` (or the smallest there is), and the whole-number
     /// scale that brings it nearest to `px` past the largest size.
     pub fn pick(&self, px: f32, bold: bool) -> (&Font, usize) {
@@ -277,5 +296,12 @@ mod tests {
         assert!(f.has('—') && f.has('·') && f.has('A'));
         let (f, s) = fs.pick(64.0, true);
         assert_eq!((f.height, s), (32, 2));
+        let (f, b) = fs.for_grid(1920, 1080, 80, 24);
+        assert_eq!((f.width, f.height), (16, 32), "120 × 33 on 1920 × 1080");
+        assert_eq!(b.map(|b| (b.width, b.height)), Some((16, 32)));
+        let (f, _) = fs.for_grid(800, 480, 80, 24);
+        assert_eq!((f.width, f.height), (10, 20), "80 × 24 on 800 × 480");
+        assert_eq!(fs.sized(24).map(|(f, _)| f.width), Some(12));
+        assert!(fs.sized(25).is_none());
     }
 }

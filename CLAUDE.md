@@ -23,7 +23,8 @@ needing only `libc` and each other (plus `miniz_oxide` for PNG):
   pipe that wakes it, and `snapshot`, the same panel run with no screen for its tests. Also
   what takes keys: the command bar (`bar`), a line being typed (`line`), and `?` (`keys`).
 - `lp-term`: a terminal's emulator, for transom (`../Transom.md`): the DEC parser and the grid
-  it keeps (`Term`), no I/O and no dependencies. Every output capability of `infocmp linux` has
+  it keeps (`Term`, no I/O), the PTY (`Pty`) and keys to bytes (`key_bytes`); drawn by
+  `lp_paint::grid`. Every output capability of `infocmp linux` has
   a test (`linux_terminfo`), since `TERM=linux` claims them; a sequence added is claimed only
   once it's tested. `width.sh` writes `width_table.rs` from glibc's charmap: run it, never edit
   the table. GPL terminals are read, never copied.
@@ -41,6 +42,7 @@ cargo clippy --all-targets -- -D warnings
 cargo test
 cargo test -p lp-paint dial        # one crate, tests whose names hold "dial"
 cargo run -p lp-panel --example parts -- out.png   # every part, drawn to a PNG
+cargo run -p lp-panel --example term -- --snapshot out.png --size 800x480 --run 'ls -l /'
 ```
 
 The crates live in `crates/kms`, `crates/keys`, `crates/paint`, `crates/panel` and `crates/term`; their tests

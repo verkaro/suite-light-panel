@@ -11,6 +11,7 @@
 pub mod dark;
 mod dial;
 mod font;
+pub mod grid;
 mod hits;
 mod list;
 mod meter;

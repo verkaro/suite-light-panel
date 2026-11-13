@@ -6,6 +6,26 @@ the git log.
 
 ## 2026-11-13
 
+- `lp-term`: the PTY and the keys, for transom's step 2. `Pty::spawn(program, args, env, dir,
+  cols, rows)`: the program in a session of its own on a pseudo-terminal, with the environment
+  given and nothing inherited; `read` and `write` without waiting, `resize`, `try_wait`,
+  `hangup` (SIGHUP to its group, so its jobs end too). `key_bytes(key, modes)`: what a key
+  sends, as terminfo's `linux` has it (F1 `ESC [[A`, Home `ESC [1~`, Backspace DEL), Ctrl and
+  a letter its control byte, Alt as ESC first. It now needs `libc` and `lp-keys`. Nothing for a
+  tool to do.
+- `lp-paint`: `grid`, a terminal's rows drawn at the screen's own pixels in Terminus
+  (`draw_row`), in `Colours::dark()`, the one place a terminal's sixteen colours are named,
+  from the dark skin. A character Terminus hasn't got is a box; bold is Terminus Bold, and bright
+  in the first eight colours, as the console draws it; the cursor an amber block.
+  `Fonts::for_grid` (the largest Terminus that gives 80 × 24) and `Fonts::sized`. `lp-paint`
+  now depends on `lp-term`, which needs only `libc` and `lp-keys`. Nothing for a tool to do.
+- `lp-keys`: `us_char(code, shift)`, the US layout's character for a key whatever else is held
+  (a terminal wants the letter under Ctrl), and `code::F3` to `F9` and the keypad's. Nothing
+  for a tool to do.
+- `lp-panel`: `examples/term.rs`, a terminal standing alone on a screen: the shell in the
+  panel, no server. Ctrl+Alt+Esc leaves; Alt+Tab never reaches the shell; Shift+PgUp and
+  Shift+PgDn scroll back. `--snapshot` runs it headless. Not yet on a real screen.
+
 - `lp-term`, new: a terminal's emulator, for transom (`../Transom.md`, step 1), written fresh
   (Warren, 2026-11-13). `Term::new(cols, rows, scrollback)`, `feed(bytes)`, `resize`; the grid
   read by `row(i)` (`Row`, `Cell`, `Color`, `Attrs`, `Width`), `scrollback(i)`, `cursor()`,

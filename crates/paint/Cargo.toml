@@ -7,4 +7,5 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+lp-term.workspace = true
 miniz_oxide.workspace = true

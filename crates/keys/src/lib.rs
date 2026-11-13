@@ -41,10 +41,32 @@ pub mod code {
     pub const SPACE: u16 = 57;
     pub const F1: u16 = 59;
     pub const F2: u16 = 60;
+    pub const F3: u16 = 61;
+    pub const F4: u16 = 62;
+    pub const F5: u16 = 63;
+    pub const F6: u16 = 64;
+    pub const F7: u16 = 65;
+    pub const F8: u16 = 66;
+    pub const F9: u16 = 67;
     pub const F10: u16 = 68;
     pub const F11: u16 = 87;
     pub const F12: u16 = 88;
+    pub const KPASTERISK: u16 = 55;
+    pub const KP7: u16 = 71;
+    pub const KP8: u16 = 72;
+    pub const KP9: u16 = 73;
+    pub const KPMINUS: u16 = 74;
+    pub const KP4: u16 = 75;
+    pub const KP5: u16 = 76;
+    pub const KP6: u16 = 77;
+    pub const KPPLUS: u16 = 78;
+    pub const KP1: u16 = 79;
+    pub const KP2: u16 = 80;
+    pub const KP3: u16 = 81;
+    pub const KP0: u16 = 82;
+    pub const KPDOT: u16 = 83;
     pub const KPENTER: u16 = 96;
+    pub const KPSLASH: u16 = 98;
     pub const RIGHTCTRL: u16 = 97;
     pub const RIGHTALT: u16 = 100;
     pub const HOME: u16 = 102;
@@ -136,6 +158,12 @@ pub fn ask_switch() -> bool {
 /// Whether the frame started this program: it sets `MUNTIN_TOOL` to the tool's id.
 pub fn under_frame() -> bool {
     std::env::var_os("MUNTIN_TOOL").is_some_and(|v| !v.is_empty())
+}
+
+/// What a key types on a US layout, with Shift or without, whatever else is held: a terminal
+/// needs the letter under Ctrl, which [`Key::ch`] leaves out.
+pub fn us_char(code: u16, shift: bool) -> Option<char> {
+    us(code).map(|(lo, hi)| if shift { hi } else { lo })
 }
 
 /// The US layout: a code's character unshifted and shifted.

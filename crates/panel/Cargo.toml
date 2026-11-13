@@ -12,3 +12,6 @@ lp-kms.workspace = true
 lp-keys.workspace = true
 lp-paint.workspace = true
 libc.workspace = true
+
+[dev-dependencies]
+lp-term.workspace = true
