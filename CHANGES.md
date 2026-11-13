@@ -6,6 +6,9 @@ the git log.
 
 ## 2026-11-13
 
+- `lp-term`: `Term::scrolled()`, every row that has gone into the scrollback, counted from the
+  start, so a row keeps its number as old ones drop off or are cleared: transom's panel asks for
+  scrollback rows by it. Nothing for a tool to do.
 - `lp-term`: `Pty::hangup` sends SIGHUP, then SIGCONT, to every process still in the program's
   session, not only its group: an interactive shell puts each job in a group of its own, and
   transom's stop says "its shell and the jobs in it end". One run with `nohup` ignores it; one

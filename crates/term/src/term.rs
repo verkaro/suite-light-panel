@@ -109,6 +109,8 @@ struct Screen {
     lines: Vec<Row>,
     other: Vec<Row>,
     scrollback: VecDeque<Row>,
+    /// Every row that has gone into the scrollback, counted from the start.
+    scrolled: u64,
     max_scrollback: usize,
     row: usize,
     col: usize,
@@ -171,6 +173,14 @@ impl Term {
         self.s.scrollback.len()
     }
 
+    /// How many rows have ever gone into the scrollback. With [`Term::scrollback_len`], it
+    /// numbers each row for good: row `i` of the scrollback is number
+    /// `scrolled() - scrollback_len() + i`, however many have been dropped off the old end or
+    /// cleared (`CSI 3 J`) since.
+    pub fn scrolled(&self) -> u64 {
+        self.s.scrolled
+    }
+
     /// Row `i` of the scrollback, 0 the oldest. A row keeps the width it had when it went.
     pub fn scrollback(&self, i: usize) -> &Row {
         &self.s.scrollback[i]
@@ -220,6 +230,7 @@ impl Screen {
             lines: vec![Row::new(cols, Color::Default); rows],
             other: vec![Row::new(cols, Color::Default); rows],
             scrollback: VecDeque::new(),
+            scrolled: 0,
             max_scrollback,
             row: 0,
             col: 0,
@@ -363,6 +374,7 @@ impl Screen {
                     self.scrollback.pop_front();
                 }
                 self.scrollback.push_back(gone);
+                self.scrolled += 1;
             }
             let blank = self.blank_row();
             self.lines.insert(self.bottom, blank);
@@ -660,6 +672,7 @@ impl Screen {
     fn reset(&mut self) {
         let mut fresh = Screen::new(self.cols, self.rows, self.max_scrollback);
         fresh.scrollback = std::mem::take(&mut self.scrollback);
+        fresh.scrolled = self.scrolled;
         fresh.replies = std::mem::take(&mut self.replies);
         fresh.bells = self.bells;
         *self = fresh;
@@ -683,6 +696,7 @@ impl Screen {
                         self.scrollback.pop_front();
                     }
                     self.scrollback.push_back(gone);
+                    self.scrolled += 1;
                 }
             }
             self.row -= from_top;

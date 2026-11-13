@@ -485,6 +485,9 @@ fn scrollback_keeps_its_length() {
     assert_eq!(screen(&t), ["5   ", "6   "]);
     let kept: Vec<_> = (0..t.scrollback_len()).map(|i| t.scrollback(i).text()).collect();
     assert_eq!(kept, ["2   ", "3   ", "4   "]);
+    assert_eq!(t.scrolled(), 4, "counted, though one was dropped");
+    t.feed(b"\x1b[3J\x1bc");
+    assert_eq!((t.scrollback_len(), t.scrolled()), (0, 4), "cleared, and RIS, keep the count");
     let mut t = Term::new(4, 2, 0);
     t.feed(b"1\r\n2\r\n3");
     assert_eq!(t.scrollback_len(), 0);
