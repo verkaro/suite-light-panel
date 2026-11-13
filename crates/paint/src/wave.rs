@@ -6,7 +6,7 @@
 //! A straight picture shows the first milliseconds and hides a tail. In dB the tail shows,
 //! down to a floor, and a curve can be laid over it: a decay, say.
 
-use crate::{Align, Pen, Rect, Rgb, dark};
+use crate::{Align, Pen, Rect, Rgb, skin};
 
 /// How the samples are set up the picture.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -82,7 +82,7 @@ impl Pen<'_, '_> {
     /// The waveform in `r`: a `well` with the sound in the skin's `tape`, the times along the
     /// bottom, and the markers over it, each with its label.
     pub fn wave(&mut self, r: Rect, w: &Wave) {
-        self.rrect(r, 3.0, dark::WELL, dark::RULE);
+        self.rrect(r, 3.0, skin().well, skin().rule);
         let plot = Wave::plot(r);
         let d = self.v.rect(plot);
         let span = w.to - w.from;
@@ -92,12 +92,12 @@ impl Pen<'_, '_> {
         let thin = self.v.len(1.0);
         // The ground: silence across the middle, or a line every 20 dB.
         match w.scale {
-            Scale::Linear => self.sf.fill(Rect::new(d.x, d.y + d.h / 2, d.w, thin), dark::RULE),
+            Scale::Linear => self.sf.fill(Rect::new(d.x, d.y + d.h / 2, d.w, thin), skin().rule),
             Scale::Db { floor } => {
                 let mut db = -20.0;
                 while db > floor {
                     let y = d.y + (d.h as f32 * db / floor) as i32;
-                    self.sf.fill(Rect::new(d.x, y, d.w, thin), dark::RULE);
+                    self.sf.fill(Rect::new(d.x, y, d.w, thin), skin().rule);
                     db -= 20.0;
                 }
             }
@@ -119,14 +119,14 @@ impl Pen<'_, '_> {
                     let y0 = (half - hi.clamp(-1.0, 1.0) * half) as i32;
                     let y1 = (half - lo.clamp(-1.0, 1.0) * half) as i32;
                     let y0 = y0.clamp(0, d.h - 1);
-                    self.sf.fill(Rect::new(x, d.y + y0, 1, (y1 - y0).clamp(1, d.h - y0)), dark::TAPE);
+                    self.sf.fill(Rect::new(x, d.y + y0, 1, (y1 - y0).clamp(1, d.h - y0)), skin().tape);
                 }
                 Scale::Db { floor } => {
                     let peak = lo.abs().max(hi.abs());
                     let db = 20.0 * peak.log10();
                     if peak > 0.0 && db > floor {
                         let h = ((d.h as f32 * (1.0 - db.min(0.0) / floor)) as i32).clamp(1, d.h);
-                        self.sf.fill(Rect::new(x, d.bottom() - h, 1, h), dark::TAPE);
+                        self.sf.fill(Rect::new(x, d.bottom() - h, 1, h), skin().tape);
                     }
                 }
             }
@@ -145,7 +145,7 @@ impl Pen<'_, '_> {
             for k in 0..w.curve.len() {
                 let here = at(k);
                 if let (Some(a), Some(b)) = (last, here) {
-                    self.sf.line(a.0, a.1, b.0, b.1, thin as f32, dark::TEXT);
+                    self.sf.line(a.0, a.1, b.0, b.1, thin as f32, skin().text);
                 }
                 last = here;
             }
@@ -159,8 +159,8 @@ impl Pen<'_, '_> {
                     // On a ground of its own: the sound may be behind it.
                     let said = format!("{db:.0}");
                     let wide = self.width(&said, 9.0, false).ceil() as i32 + 4;
-                    self.fill(Rect::new(label.x - 2, label.y, wide, label.h), dark::WELL);
-                    self.text(label, &said, 9.0, false, dark::DIM, Align::Left);
+                    self.fill(Rect::new(label.x - 2, label.y, wide, label.h), skin().well);
+                    self.text(label, &said, 9.0, false, skin().dim, Align::Left);
                 }
                 db -= 20.0;
             }
@@ -168,13 +168,13 @@ impl Pen<'_, '_> {
         // The times: a tick and its figure, about every 70 logical pixels.
         let each = step(span * 70.0 / plot.w.max(1) as f64);
         let axis = Rect::new(plot.x, plot.bottom(), plot.w, AXIS);
-        self.fill(Rect::new(axis.x, axis.y, axis.w, 1), dark::RULE);
+        self.fill(Rect::new(axis.x, axis.y, axis.w, 1), skin().rule);
         let mut t = (w.from / each).ceil() * each;
         let mut first = true;
         while t <= w.to {
             let x = plot.x as f32 + ((t - w.from) / span) as f32 * plot.w as f32;
             let dx = self.v.x(x).min(d.right() - thin);
-            self.sf.fill(Rect::new(dx, self.v.y(axis.y as f32), thin, self.v.len(3.0)), dark::DIM);
+            self.sf.fill(Rect::new(dx, self.v.y(axis.y as f32), thin, self.v.len(3.0)), skin().dim);
             let mut label = said(t, each);
             if first {
                 label = format!("{label} {}", w.unit);
@@ -187,7 +187,7 @@ impl Pen<'_, '_> {
                     &label,
                     9.0,
                     false,
-                    dark::DIM,
+                    skin().dim,
                     Align::Left,
                 );
             }
@@ -211,7 +211,7 @@ impl Pen<'_, '_> {
             } else {
                 (x as i32 - 3 - wide, Align::Right)
             };
-            self.fill(Rect::new(lx - 1, y, wide + 1, 10), dark::WELL);
+            self.fill(Rect::new(lx - 1, y, wide + 1, 10), skin().well);
             self.text(Rect::new(lx, y, wide, 10), m.label, 9.0, true, m.color, align);
         }
     }
@@ -220,6 +220,7 @@ impl Pen<'_, '_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dark;
     use crate::pen::tests::{fonts, has};
     use crate::{Image, View};
 

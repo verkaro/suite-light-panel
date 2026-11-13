@@ -4,18 +4,18 @@
 //! missing.
 
 use lp_keys::common::{Declared, shown};
-use lp_paint::{Align, Pen, Rect, dark};
+use lp_paint::{Align, Pen, Rect, skin};
 
 /// The keys in `list` for the screens named, in that order, in the box `r`, the rest of the
 /// canvas shaded. Three columns, a screen's name over its keys. The panel closes it: Esc, `?`
 /// or a click is the usual way.
 pub fn keys_over(pen: &mut Pen, list: &[Declared], screens: &[&str], r: Rect) {
     let area = pen.v.area();
-    pen.sf.shade(area, dark::PAGE, 0.6);
-    pen.rrect(r, 6.0, dark::OVERLAY, dark::RULE);
+    pen.sf.shade(area, skin().page, 0.6);
+    pen.rrect(r, 6.0, skin().overlay, skin().rule);
     let head = Rect::new(r.x + 16, r.y + 10, r.w - 32, 20);
-    pen.text(head, "THE KEYS", 13.0, true, dark::TEXT, Align::Left);
-    pen.text(head, "Esc or ? closes", 10.0, false, dark::FAINT, Align::Right);
+    pen.text(head, "THE KEYS", 13.0, true, skin().text, Align::Left);
+    pen.text(head, "Esc or ? closes", 10.0, false, skin().faint, Align::Right);
     let col = (r.w - 32) / 3;
     const LINE: i32 = 18;
     let top = r.y + 42;
@@ -45,19 +45,19 @@ pub fn keys_over(pen: &mut Pen, list: &[Declared], screens: &[&str], r: Rect) {
             &screen.to_uppercase(),
             10.0,
             true,
-            dark::AMBER,
+            skin().amber,
             Align::Left,
         );
         next(&mut x, &mut y);
         for d in here {
-            pen.text(Rect::new(x, y, kw, LINE), shown(&d.key), 11.0, true, dark::TEXT, Align::Left);
+            pen.text(Rect::new(x, y, kw, LINE), shown(&d.key), 11.0, true, skin().text, Align::Left);
             let does = if d.note.is_empty() { d.does.clone() } else { format!("{} · {}", d.does, d.note) };
             pen.text(
                 Rect::new(x + kw + 4, y, col - kw - 12, LINE),
                 &does,
                 11.0,
                 false,
-                dark::DIM,
+                skin().dim,
                 Align::Left,
             );
             next(&mut x, &mut y);
@@ -69,6 +69,7 @@ pub fn keys_over(pen: &mut Pen, list: &[Declared], screens: &[&str], r: Rect) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lp_paint::dark;
     use lp_paint::{Fonts, Image, View};
 
     fn entry(key: &str, does: &str, note: &str, screen: &str) -> Declared {

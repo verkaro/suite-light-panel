@@ -9,7 +9,7 @@
 use crate::{Rect, Rgb, Surface, hex, mix};
 
 /// A ladder's colours, lit and unlit, one per LED from the bottom.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LedColors {
     pub lit: Vec<Rgb>,
     pub unlit: Vec<Rgb>,

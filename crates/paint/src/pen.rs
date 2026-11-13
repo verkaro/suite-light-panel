@@ -4,7 +4,7 @@
 //!
 //! Moved here from dexter-kms's `draw.rs` (2026-11-07), for Tape's panel and the ones after.
 
-use crate::{Fonts, Rect, Rgb, Surface, View, dark};
+use crate::{Fonts, Rect, Rgb, Surface, View, skin};
 
 /// Where text sits across its box.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -106,10 +106,10 @@ impl Pen<'_, '_> {
         let (f, k) = self.fonts.pick(9.0 * self.v.scale, true);
         let d = self.v.rect(r);
         let y = d.y + (d.h - (f.height * k) as i32) / 2;
-        let end = f.draw(self.sf, d.x, y, label, dark::FAINT, k);
+        let end = f.draw(self.sf, d.x, y, label, skin().faint, k);
         let gap = self.v.len(6.0);
         let line = Rect::new(end + gap, d.y + d.h / 2, d.right() - end - gap, self.v.len(1.0));
-        self.sf.fill(line, dark::RULE);
+        self.sf.fill(line, skin().rule);
     }
 }
 
@@ -117,6 +117,7 @@ impl Pen<'_, '_> {
 pub(crate) mod tests {
     use super::*;
     use crate::Image;
+    use crate::dark;
     use crate::font::CONSOLE_FONTS;
     use std::path::Path;
 

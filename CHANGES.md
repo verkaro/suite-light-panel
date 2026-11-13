@@ -6,6 +6,18 @@ the git log.
 
 ## 2026-11-13
 
+- `lp-paint`: skins on the console (P9). `Skin`, every solid colour the page names by its name
+  (`btn_edge`), the meters' bands and the key colours: `Skin::DARK` (`dark`'s, unchanged) and
+  `Skin::SEVENTIES`, held to `page-kit.js` by a test. `Skin::named`, `next`, `on_key` (the page's
+  `onKey`), `leds(n)`. `skin()` is the skin this thread draws in, dark until `set_skin`; nothing
+  reads the environment by itself. `Skin::from_frame()` is the skin muntin's console is in, from
+  `MUNTIN_SKIN` (`dark` or `seventies`), dark otherwise. `grid::Colours::skin(&Skin)`;
+  `LedColors` compares. Every part in `lp-paint` and `lp-panel` (the key, the field, the list,
+  the dial, the waveform, `rule`, the bar, `?`'s keys, the sheet) now draws in `skin()`, what's on
+  a key or a chosen row in its key colours. **A tool:** nothing, while it doesn't call
+  `set_skin`: everything stays dark. To take skins, at start: `set_skin(Skin::from_frame())`,
+  its own `dark::X` as `skin().x`, and what it draws on `btn` or `btnHi` through `on_key`
+  (`muntin/Skins.md`).
 - `lp-panel`'s example `term`: the shell is given `NCURSES_GPM_TERMS` empty. On a terminal named
   `linux`, ncurses asks gpm for the mouse, which serves only a real console; from a
   pseudo-terminal, `htop` started from the shell waited on a key and never redrew (found at

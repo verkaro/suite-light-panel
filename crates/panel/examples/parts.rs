@@ -1,15 +1,17 @@
 //! Every part a panel is made of, drawn once to a PNG, for whoever changes one to look at:
 //!
 //! ```sh
-//! cargo run -p lp-panel --example parts -- /tmp/parts.png [1920x1080]
+//! cargo run -p lp-panel --example parts -- /tmp/parts.png [1920x1080] [seventies]
 //! ```
+//!
+//! The last names the skin (`dark` by default). `tests/skin.rs` draws the same in 70s.
 //!
 //! A picture proves the drawing, not a screen.
 
 use lp_keys::common::{Declared, KEYS};
 use lp_paint::{
     Align, Cell, Column, Dial, Disc, Field, FieldState, Fonts, Hits, Image, KeyLook, List, ListLook, Marker,
-    Pen, Rect, Scale, View, Wave, dark, knob_pos, write_png,
+    Pen, Rect, Scale, Skin, Surface, View, Wave, knob_pos, set_skin, skin, write_png,
 };
 use lp_panel::bar::{Bar, Opt};
 use lp_panel::keys::keys_over;
@@ -18,20 +20,33 @@ use lp_panel::snapshot::keys_of;
 
 fn main() -> Result<(), String> {
     let mut args = std::env::args().skip(1);
-    let path = args.next().ok_or("parts PNG [WxH]")?;
+    let path = args.next().ok_or("parts PNG [WxH] [skin]")?;
     let size = args.next().unwrap_or("1400x1340".into());
     let (w, h) = size.split_once('x').ok_or("the size is WxH")?;
     let (w, h): (usize, usize) = (w.parse().map_err(|_| "W")?, h.parse().map_err(|_| "H")?);
+    if let Some(name) = args.next() {
+        set_skin(Skin::named(&name).ok_or("the skin is dark or seventies")?);
+    }
     let fonts = Fonts::terminus(None).map_err(|e| e.to_string())?;
     let mut img = Image::new(w, h);
     let mut sf = img.surface();
-    sf.clear(dark::PAGE);
-    let mut pen = Pen { sf: &mut sf, fonts: &fonts, v: View::fit(1400, 1340, w, h) };
+    draw(&mut sf, &fonts, std::env::var_os("PARTS_KEYS").is_some())?;
+    write_png(std::path::Path::new(&path), &sf).map_err(|e| e.to_string())?;
+    println!("{path} ({w}×{h}, {})", skin().name);
+    Ok(())
+}
+
+/// Every part, in the thread's skin, on a 1400 × 1340 canvas fitted to `sf`; the keys over them
+/// with `keys`.
+pub fn draw(sf: &mut Surface, fonts: &Fonts, keys: bool) -> Result<(), String> {
+    sf.clear(skin().page);
+    let v = View::fit(1400, 1340, sf.w, sf.h);
+    let mut pen = Pen { sf, fonts, v };
     let mut hits = Hits::new();
-    pen.fill(Rect::new(0, 0, 1400, 1340), dark::BG);
+    pen.fill(Rect::new(0, 0, 1400, 1340), skin().bg);
 
     // A list, the hand on it.
-    pen.fill(Rect::new(10, 10, 560, 400), dark::PANEL);
+    pen.fill(Rect::new(10, 10, 560, 400), skin().panel);
     pen.rule(Rect::new(20, 14, 540, 16), "LIBRARY");
     let cols = [
         Column { head: "NAME", w: 0, align: Align::Left },
@@ -47,16 +62,16 @@ fn main() -> Result<(), String> {
     let row = |i: usize| {
         vec![
             Cell::new(format!("room {i:02}, the stairwell behind the old hall")),
-            Cell::colored("stairwell", dark::DIM),
+            Cell::colored("stairwell", skin().dim),
             Cell::new(format!("{:.2}", 0.2 + i as f32 * 0.07)),
-            Cell::colored(format!("{:.1}", 0.5 + i as f32 * 0.1), dark::DIM),
-            if i % 4 == 1 { Cell::colored("•", dark::AMBER) } else { Cell::default() },
+            Cell::colored(format!("{:.1}", 0.5 + i as f32 * 0.1), skin().dim),
+            if i % 4 == 1 { Cell::colored("•", skin().amber) } else { Cell::default() },
         ]
     };
     list.draw(&mut pen, area, &look, &cols, 60, Some(9), true, row, Some((&mut hits, "row")));
 
     // A form: plain, empty, under the cursor, waiting, being typed in.
-    pen.fill(Rect::new(580, 10, 400, 190), dark::PANEL);
+    pen.fill(Rect::new(580, 10, 400, 190), skin().panel);
     pen.rule(Rect::new(590, 14, 380, 16), "WHAT'S SAID");
     let field = |label, value, waiting, state| Field {
         label,
@@ -86,7 +101,7 @@ fn main() -> Result<(), String> {
         Rect::new(1090, 14, 90, 26),
         "PLAY",
         "play",
-        KeyLook { lit: Some(dark::GREEN), ..KeyLook::default() },
+        KeyLook { lit: Some(skin().green), ..KeyLook::default() },
     );
     pen.key(
         &mut hits,
@@ -145,8 +160,8 @@ fn main() -> Result<(), String> {
     let curve: Vec<Option<f32>> =
         (0..n).map(|k| (k >= 6).then(|| -64.0 * (k - 6) as f32 / n as f32)).collect();
     let markers = [
-        Marker { at: 3.0, label: "ONSET", color: dark::GREEN },
-        Marker { at: 75.0, label: "TAIL", color: dark::AMBER },
+        Marker { at: 3.0, label: "ONSET", color: skin().green },
+        Marker { at: 75.0, label: "TAIL", color: skin().amber },
     ];
     let wave = Wave {
         lo: &lo,
@@ -215,10 +230,10 @@ fn main() -> Result<(), String> {
     picker.key("]", &lists);
     picker.key("]", &lists);
     picker.key("j", &lists);
-    pen.fill(Rect::new(10, 866, 1380, 470), dark::PANEL);
+    pen.fill(Rect::new(10, 866, 1380, 470), skin().panel);
     picker.draw(&mut pen, &mut hits, Rect::new(236, 876, 928, 456), &lists);
 
-    if std::env::var_os("PARTS_KEYS").is_some() {
+    if keys {
         let list: Vec<Declared> = KEYS
             .iter()
             .map(|(k, m)| Declared {
@@ -230,7 +245,5 @@ fn main() -> Result<(), String> {
             .collect();
         keys_over(&mut pen, &list, &["everywhere"], Rect::new(200, 120, 1000, 560));
     }
-    write_png(std::path::Path::new(&path), &sf).map_err(|e| e.to_string())?;
-    println!("{path} ({w}×{h})");
     Ok(())
 }

@@ -4,10 +4,10 @@
 //! box, never nothing. Bold is Terminus Bold, and in one of the first eight colours, its bright
 //! form. The cursor is a block in amber, the family's colour for it.
 //!
-//! The colours a shell asks for are named here and nowhere else ([`Colours::dark`]), from the
-//! dark skin's own, so moving onto a skin value changes this one place.
+//! The colours a shell asks for are named here and nowhere else ([`Colours::skin`]), from a
+//! skin's own: dark's by [`Colours::dark`], 70s's by `Colours::skin(&Skin::SEVENTIES)`.
 
-use crate::{Font, Rect, Rgb, Surface, dark, mix, rgb};
+use crate::{Font, Rect, Rgb, Skin, Surface, mix, rgb};
 use lp_term::{Attrs, Cell, Color, Width};
 
 /// What the grid is drawn in: the default foreground and background, the cursor, and the
@@ -21,34 +21,39 @@ pub struct Colours {
 }
 
 impl Colours {
-    /// The dark skin's. The bright eight are the skin's lit colours; the first eight the same,
-    /// sunk a third of the way into the ground, so text on them still reads. Magenta and cyan
-    /// aren't in the skin: they're its red and green each met halfway with `tape`.
+    /// The dark skin's.
     pub fn dark() -> Colours {
-        let sunk = |c: Rgb| mix(c, dark::BG, 0.3);
-        let magenta = mix(dark::RED, dark::TAPE, 0.5);
-        let cyan = mix(dark::GREEN, dark::TAPE, 0.5);
+        Colours::skin(&Skin::DARK)
+    }
+
+    /// A skin's. The bright eight are the skin's lit colours; the first eight the same, sunk a
+    /// third of the way into the ground, so text on them still reads. Magenta and cyan aren't in
+    /// a skin: they're its red and green each met halfway with `tape`.
+    pub fn skin(k: &Skin) -> Colours {
+        let sunk = |c: Rgb| mix(c, k.bg, 0.3);
+        let magenta = mix(k.red, k.tape, 0.5);
+        let cyan = mix(k.green, k.tape, 0.5);
         Colours {
-            fg: dark::TEXT,
-            bg: dark::BG,
-            cursor: dark::AMBER,
+            fg: k.text,
+            bg: k.bg,
+            cursor: k.amber,
             ansi: [
-                dark::WELL,
-                sunk(dark::RED),
-                sunk(dark::GREEN),
-                sunk(dark::AMBER),
-                sunk(dark::TAPE),
+                k.well,
+                sunk(k.red),
+                sunk(k.green),
+                sunk(k.amber),
+                sunk(k.tape),
                 sunk(magenta),
                 sunk(cyan),
-                dark::TEXT,
-                dark::FAINT,
-                dark::RED,
-                dark::GREEN,
-                dark::AMBER,
-                dark::TAPE,
+                k.text,
+                k.faint,
+                k.red,
+                k.green,
+                k.amber,
+                k.tape,
                 magenta,
                 cyan,
-                mix(dark::TEXT, rgb(255, 255, 255), 0.5),
+                mix(k.text, rgb(255, 255, 255), 0.5),
             ],
         }
     }

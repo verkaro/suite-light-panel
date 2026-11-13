@@ -20,7 +20,7 @@
 use std::time::{Duration, Instant};
 
 use lp_keys::{Key, State, code};
-use lp_paint::{Align, Hits, KeyLook, Pen, Rect, dark};
+use lp_paint::{Align, Hits, KeyLook, Pen, Rect, skin};
 
 use crate::line::Line;
 
@@ -411,9 +411,9 @@ impl Bar {
     /// its edge is amber, and what can be clicked is put in `hits` as `bar:…`.
     pub fn draw(&self, pen: &mut Pen, hits: &mut Hits, r: Rect, idle: &str) {
         const SIZE: f32 = 13.0;
-        pen.rrect(r, 3.0, dark::WELL, if self.s.is_some() { dark::AMBER } else { dark::RULE });
+        pen.rrect(r, 3.0, skin().well, if self.s.is_some() { skin().amber } else { skin().rule });
         let Some(s) = &self.s else {
-            pen.text(Rect::new(r.x + 10, r.y, r.w - 20, r.h), idle, 11.0, false, dark::FAINT, Align::Left);
+            pen.text(Rect::new(r.x + 10, r.y, r.w - 20, r.h), idle, 11.0, false, skin().faint, Align::Left);
             return;
         };
         let end = (r.right() - 10) as f32;
@@ -428,16 +428,16 @@ impl Bar {
         };
         match s {
             Use::Ask { said, .. } => {
-                say(pen, hits, &mut x, &format!("{said}  "), dark::TEXT, "");
-                say(pen, hits, &mut x, "y", dark::AMBER, "bar:yes");
-                say(pen, hits, &mut x, "  anything else lets it go", dark::FAINT, "");
+                say(pen, hits, &mut x, &format!("{said}  "), skin().text, "");
+                say(pen, hits, &mut x, "y", skin().amber, "bar:yes");
+                say(pen, hits, &mut x, "  anything else lets it go", skin().faint, "");
             }
             Use::Offer { said, letter, word, .. } => {
-                say(pen, hits, &mut x, &format!("{said}  "), dark::TEXT, "");
-                say(pen, hits, &mut x, &format!("{letter} {word}"), dark::DIM, "bar:offer");
+                say(pen, hits, &mut x, &format!("{said}  "), skin().text, "");
+                say(pen, hits, &mut x, &format!("{letter} {word}"), skin().dim, "bar:offer");
             }
             Use::Type { said, line, wrong, .. } => {
-                say(pen, hits, &mut x, &format!("{said}  "), dark::DIM, "");
+                say(pen, hits, &mut x, &format!("{said}  "), skin().dim, "");
                 let keys = 146;
                 let room = end - keys as f32 - x;
                 let each = pen.width("M", SIZE, true).max(1.0);
@@ -447,7 +447,7 @@ impl Bar {
                 let from = if line.caret() >= fit { line.caret() + 1 - fit } else { 0 };
                 let shown: String = text[from..].iter().take(fit).collect();
                 let start = x;
-                say(pen, hits, &mut x, &shown, dark::READOUT, "");
+                say(pen, hits, &mut x, &shown, skin().readout, "");
                 let at = start + (line.caret() - from) as f32 * each;
                 let caret = Rect::new(
                     pen.v.x(at),
@@ -455,11 +455,11 @@ impl Bar {
                     pen.v.len(1.5),
                     pen.v.len(r.h as f32 - 8.0),
                 );
-                pen.sf.fill(caret, dark::AMBER);
+                pen.sf.fill(caret, skin().amber);
                 if let Some(why) = wrong {
-                    say(pen, hits, &mut x, &format!("   {why}"), dark::RED, "");
+                    say(pen, hits, &mut x, &format!("   {why}"), skin().red, "");
                 } else if line.full() {
-                    say(pen, hits, &mut x, "   no longer than this", dark::FAINT, "");
+                    say(pen, hits, &mut x, "   no longer than this", skin().faint, "");
                 }
                 let done = Rect::new(r.right() - 142, r.y + 2, 70, r.h - 4);
                 let cancel = Rect::new(r.right() - 68, r.y + 2, 64, r.h - 4);
@@ -470,25 +470,25 @@ impl Bar {
             Use::Choose(c) => {
                 let path =
                     if c.path.is_empty() { ":".to_string() } else { format!(":{} ", c.path.join(" ")) };
-                say(pen, hits, &mut x, &path, dark::AMBER, "");
+                say(pen, hits, &mut x, &path, skin().amber, "");
                 if !c.typed.is_empty() {
                     let found = c.matches();
-                    say(pen, hits, &mut x, &c.typed, dark::READOUT, "");
+                    say(pen, hits, &mut x, &c.typed, skin().readout, "");
                     let caret = Rect::new(
                         pen.v.x(x),
                         pen.v.y(r.y as f32 + 4.0),
                         pen.v.len(1.5),
                         pen.v.len(r.h as f32 - 8.0),
                     );
-                    pen.sf.fill(caret, dark::AMBER);
+                    pen.sf.fill(caret, skin().amber);
                     x += 3.0;
                     // The first match, or the one Tab is on, finished after the caret.
                     if let Some(o) = found.get(c.sel.unwrap_or(0)) {
                         let rest: String = o.name.chars().skip(c.typed.chars().count()).collect();
-                        say(pen, hits, &mut x, &rest, dark::DIM, "");
+                        say(pen, hits, &mut x, &rest, skin().dim, "");
                     }
                     if let Some(why) = &c.wrong {
-                        say(pen, hits, &mut x, &format!("   {why}"), dark::RED, "");
+                        say(pen, hits, &mut x, &format!("   {why}"), skin().red, "");
                     }
                     return;
                 }
@@ -508,22 +508,22 @@ impl Bar {
                 }
                 for (i, o) in level.iter().enumerate().skip(first) {
                     if x + wide(pen, o) > end - 20.0 {
-                        say(pen, hits, &mut x, "…", dark::FAINT, "");
+                        say(pen, hits, &mut x, "…", skin().faint, "");
                         break;
                     }
                     let color = if c.sel == Some(i) {
-                        dark::TEXT
+                        skin().text
                     } else if o.faint {
-                        dark::FAINT
+                        skin().faint
                     } else {
-                        dark::DIM
+                        skin().dim
                     };
                     say(pen, hits, &mut x, &o.name, color, &format!("bar:opt:{i}"));
                     x += gap;
                 }
                 if let Some(why) = &c.wrong {
                     x += 4.0;
-                    say(pen, hits, &mut x, why, dark::RED, "");
+                    say(pen, hits, &mut x, why, skin().red, "");
                 }
             }
         }
@@ -535,6 +535,7 @@ mod tests {
     use super::*;
     use crate::snapshot::keys_of;
     use lp_keys::Mods;
+    use lp_paint::dark;
     use lp_paint::{Fonts, Image, View};
 
     /// Types `keys` at the bar: what it did, and whether every key was taken.

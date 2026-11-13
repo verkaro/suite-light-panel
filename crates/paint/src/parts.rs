@@ -1,8 +1,9 @@
 //! The family's parts that a panel is made of (`../STYLE.md`, "The parts"), drawn with the
-//! [`Pen`] in the dark skin: a key, and a form's field.
+//! [`Pen`] in the thread's skin ([`crate::skin`]): a key, and a form's field. What's drawn on a
+//! key goes through [`crate::Skin::on_key`], as the page's `key` does.
 
 use crate::hits::bar_name;
-use crate::{Align, Hits, Pen, Rect, Rgb, dark};
+use crate::{Align, Hits, Pen, Rect, Rgb, skin};
 
 /// How a key looks. The default is a plain key that can be pressed, listed in the bar by its
 /// label.
@@ -51,11 +52,11 @@ impl Pen<'_, '_> {
     /// A key (`page-kit.js`'s `key`): the skin's `btn` with a `btnEdge`, corners 3, its label
     /// centred. With an id it's somewhere to click, and the bar lists it.
     pub fn key(&mut self, hits: &mut Hits, r: Rect, label: &str, id: &str, look: KeyLook) {
-        self.rrect(r, 3.0, look.lit.unwrap_or(dark::BTN), look.lit.unwrap_or(dark::BTN_EDGE));
+        self.rrect(r, 3.0, look.lit.unwrap_or(skin().btn), look.lit.unwrap_or(skin().btn_edge));
         let color = match (look.lit, look.faint) {
-            (Some(_), _) => dark::ON_RED,
-            (None, true) => dark::FAINT,
-            (None, false) => look.color.unwrap_or(dark::TEXT),
+            (Some(_), _) => skin().on_red,
+            (None, true) => skin().on_key(skin().faint),
+            (None, false) => skin().on_key(look.color.unwrap_or(skin().text)),
         };
         self.text(r.inset(2), label, 10.0, true, color, Align::Centre);
         if id.is_empty() {
@@ -82,7 +83,7 @@ impl Pen<'_, '_> {
         let label = Rect::new(r.x, r.y, f.label_w.min(r.w), r.h);
         let boxr = Rect::new(r.x + label.w, r.y, r.w - label.w, r.h);
         let typing = matches!(f.state, FieldState::Typing { .. });
-        let label_color = if f.state == FieldState::Plain { dark::DIM } else { dark::TEXT };
+        let label_color = if f.state == FieldState::Plain { skin().dim } else { skin().text };
         self.text(
             Rect::new(label.x, label.y, label.w - 6, label.h),
             f.label,
@@ -93,25 +94,27 @@ impl Pen<'_, '_> {
         );
         if f.waiting {
             // The mark: a small amber bar where the label ends.
-            self.fill(Rect::new(boxr.x - 5, r.y + 3, 2, r.h - 6), dark::AMBER);
+            self.fill(Rect::new(boxr.x - 5, r.y + 3, 2, r.h - 6), skin().amber);
         }
         let (fill, edge) = match f.state {
-            FieldState::Plain => (dark::WELL, dark::RULE),
-            FieldState::Cursor => (dark::BTN_HI, dark::BTN_EDGE),
-            FieldState::Typing { .. } => (dark::WELL, dark::AMBER),
+            FieldState::Plain => (skin().well, skin().rule),
+            FieldState::Cursor => (skin().btn_hi, skin().btn_edge),
+            FieldState::Typing { .. } => (skin().well, skin().amber),
         };
         self.rrect(boxr, 3.0, fill, edge);
         let inner = Rect::new(boxr.x + 6, boxr.y, boxr.w - 12, boxr.h);
+        // Under the cursor the box is a key's colour, and what's in it is drawn as on a key.
+        let on = |c| if f.state == FieldState::Cursor { skin().on_key(c) } else { c };
         if f.value.is_empty() && !typing {
-            self.text(inner, f.hint, f.size, false, dark::FAINT, Align::Left);
+            self.text(inner, f.hint, f.size, false, on(skin().faint), Align::Left);
             return;
         }
         let color = if typing {
-            dark::READOUT
+            skin().readout
         } else if f.waiting {
-            dark::AMBER
+            on(skin().amber)
         } else {
-            dark::TEXT
+            on(skin().text)
         };
         let FieldState::Typing { caret } = f.state else {
             self.text(inner, f.value, f.size, false, color, Align::Left);
@@ -129,13 +132,14 @@ impl Pen<'_, '_> {
         let tall = (f.size + 2.0).min(r.h as f32 - 4.0);
         let top = r.y as f32 + (r.h as f32 - tall) / 2.0;
         let d = Rect::new(self.v.x(at), self.v.y(top), self.v.len(1.5), self.v.len(tall));
-        self.sf.fill(d, dark::AMBER);
+        self.sf.fill(d, skin().amber);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dark;
     use crate::pen::tests::{fonts, has};
     use crate::{Image, View};
 

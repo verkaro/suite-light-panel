@@ -18,6 +18,7 @@ mod meter;
 mod parts;
 mod pen;
 mod png;
+mod skin;
 mod wave;
 
 pub use dial::{DIAL_A0, DIAL_SWEEP, Dial, DialPart, KNOB_KNEE_DB, dial_angle, dial_part, knob_db, knob_pos};
@@ -28,6 +29,7 @@ pub use meter::{Disc, LedColors, disc_led, ladder};
 pub use parts::{Field, FieldState, KeyLook};
 pub use pen::{Align, Pen};
 pub use png::write_png;
+pub use skin::{KeyColors, Skin, set_skin, skin};
 pub use wave::{Marker, Scale, Wave};
 
 /// 0x00RRGGBB.

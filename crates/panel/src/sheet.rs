@@ -9,7 +9,7 @@
 //! clicks, and gives back what was decided as a [`Did`], as the bar gives back an `Act`. It
 //! never asks: whether APPLY wants a question first is the tool's.
 
-use lp_paint::{Align, Hits, KeyLook, Pen, Rect, dark};
+use lp_paint::{Align, Hits, KeyLook, Pen, Rect, skin};
 
 /// A word in FROM's or TO's list.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -363,7 +363,7 @@ impl Picker {
             &self.sentence(lists),
             11.0,
             true,
-            dark::AMBER,
+            skin().amber,
             Align::Right,
         );
         hits.section(lists.title);
@@ -381,9 +381,9 @@ impl Picker {
         d.focus(pen, self, Rect::new(vx, list_top, vw, 3 * 30 - 6), Col::Verb);
         for (k, v) in VERBS.iter().enumerate() {
             let kr = Rect::new(vx, list_top + k as i32 * 30, vw, 24);
-            let lit = (k == self.verb).then_some(dark::AMBER);
+            let lit = (k == self.verb).then_some(skin().amber);
             if k == self.verb_sel && self.col == Col::Verb && lit.is_none() {
-                pen.rrect(Rect::new(kr.x - 2, kr.y - 2, kr.w + 4, kr.h + 4), 4.0, dark::BG, dark::AMBER);
+                pen.rrect(Rect::new(kr.x - 2, kr.y - 2, kr.w + 4, kr.h + 4), 4.0, skin().bg, skin().amber);
             }
             pen.key(
                 hits,
@@ -399,23 +399,25 @@ impl Picker {
         // The lines staged, in amber until APPLY; a click takes one back.
         let sx = tx + lw + s(18);
         let sw = r.right() - sx;
-        pen.text(Rect::new(sx, top + 22, sw, 20), "STAGED", 9.0, true, dark::DIM, Align::Left);
+        pen.text(Rect::new(sx, top + 22, sw, 20), "STAGED", 9.0, true, skin().dim, Align::Left);
         let area = Rect::new(sx, list_top, sw, rows * row_h - 34);
         d.focus(pen, self, area, Col::Staged);
-        pen.rrect(area, 3.0, dark::PANEL, dark::RULE);
+        pen.rrect(area, 3.0, skin().panel, skin().rule);
         if lists.staged.is_empty() {
-            pen.text(area.inset(8), "nothing staged", 10.0, false, dark::FAINT, Align::Left);
+            pen.text(area.inset(8), "nothing staged", 10.0, false, skin().faint, Align::Left);
         }
         let fit = (area.h / row_h).max(0) as usize;
         let first = self.staged_sel.saturating_sub(fit.saturating_sub(1));
         for (k, line) in lists.staged.iter().enumerate().skip(first).take(fit) {
             let lr = Rect::new(sx + 2, list_top + (k - first) as i32 * row_h + 1, sw - 4, row_h - 2);
-            if k == self.staged_sel && self.col == Col::Staged {
-                pen.fill(lr, dark::BTN_HI);
+            let chosen = k == self.staged_sel && self.col == Col::Staged;
+            if chosen {
+                pen.fill(lr, skin().btn_hi);
             }
             let words = if line.warn { format!("! {}", line.words) } else { line.words.clone() };
             let tr = Rect::new(lr.x + 6, lr.y, lr.w - 12, lr.h);
-            pen.text(tr, &words, 10.0, line.warn, dark::AMBER, Align::Left);
+            let c = if chosen { skin().on_key(skin().amber) } else { skin().amber };
+            pen.text(tr, &words, 10.0, line.warn, c, Align::Left);
             hits.add(lr, &format!("sheet:staged:{k}"));
         }
         let ky = area.bottom() + 8;
@@ -442,7 +444,7 @@ impl Drawing {
     /// The hand's column: an amber edge round it.
     fn focus(&self, pen: &mut Pen, p: &Picker, r: Rect, col: Col) {
         if p.col == col {
-            pen.rrect(Rect::new(r.x - 3, r.y - 3, r.w + 6, r.h + 6), 4.0, dark::BG, dark::AMBER);
+            pen.rrect(Rect::new(r.x - 3, r.y - 3, r.w + 6, r.h + 6), 4.0, skin().bg, skin().amber);
         }
     }
 
@@ -469,9 +471,9 @@ impl Drawing {
         for (k, name) in kinds.iter().enumerate() {
             let r = Rect::new(x + k as i32 * kw, self.top + 22, kw - 4, 20);
             // The list shown in plain text, with a line under it; the others dim.
-            let color = Some(if k == kind { dark::TEXT } else { dark::DIM });
+            let color = Some(if k == kind { skin().text } else { skin().dim });
             if k == kind {
-                pen.fill(Rect::new(r.x + 6, r.bottom() + 1, r.w - 12, 2), dark::TEXT);
+                pen.fill(Rect::new(r.x + 6, r.bottom() + 1, r.w - 12, 2), skin().text);
             }
             pen.key(hits, r, name, &format!("sheet:{kid}:{k}"), KeyLook { color, ..KeyLook::default() });
         }
@@ -488,7 +490,7 @@ impl Drawing {
         }
         let area = Rect::new(x, self.list_top, w, self.rows * self.row_h);
         self.focus(pen, p, area, col);
-        pen.rrect(area, 3.0, dark::PANEL, dark::RULE);
+        pen.rrect(area, 3.0, skin().panel, skin().rule);
         let rows = self.rows as usize;
         let first = sel.saturating_sub(rows.saturating_sub(1));
         let here = p.col == col;
@@ -497,15 +499,17 @@ impl Drawing {
                 Rect::new(x + 2, self.list_top + (k - first) as i32 * self.row_h + 1, w - 4, self.row_h - 2);
             let is_picked = picked.as_deref() == Some(word.id.as_str());
             if is_picked {
-                pen.fill(r, dark::AMBER);
+                pen.fill(r, skin().amber);
             } else if k == sel && here {
-                pen.fill(r, dark::BTN_HI);
+                pen.fill(r, skin().btn_hi);
             }
-            let c = if is_picked { dark::ON_RED } else { dark::TEXT };
+            // The row chosen is a key's colour: what's on it is drawn as on a key.
+            let on = |c| if !is_picked && k == sel && here { skin().on_key(c) } else { c };
+            let c = if is_picked { skin().on_red } else { on(skin().text) };
             let tr = Rect::new(r.x + 6, r.y, r.w - 12, r.h);
             let mut at = tr.x as f32;
             if word.fed || word.staged {
-                let mc = if word.staged && !is_picked { dark::AMBER } else { c };
+                let mc = if word.staged && !is_picked { on(skin().amber) } else { c };
                 pen.run(at, tr, "●", 10.0, false, mc);
             }
             at += pen.width("● ", 10.0, false);
@@ -517,7 +521,14 @@ impl Drawing {
                 pen.text(lr, &word.label, 10.0, is_picked, c, Align::Left);
             } else {
                 at = pen.run(at, tr, &word.label, 10.0, is_picked, c) + gap;
-                pen.run(at, tr, &word.small, 9.0, false, if is_picked { dark::ON_RED } else { dark::DIM });
+                pen.run(
+                    at,
+                    tr,
+                    &word.small,
+                    9.0,
+                    false,
+                    if is_picked { skin().on_red } else { on(skin().dim) },
+                );
             }
             hits.add(r, &format!("sheet:{wid}:{k}"));
         }

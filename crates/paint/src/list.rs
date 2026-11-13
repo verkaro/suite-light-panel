@@ -2,7 +2,7 @@
 //! stays in view. The rows are the tool's and so is which is chosen; a list keeps only where
 //! it's scrolled to, which is the view's own to keep.
 
-use crate::{Align, Hits, Pen, Rect, Rgb, dark};
+use crate::{Align, Hits, Pen, Rect, Rgb, skin};
 
 /// A column: its head, and how wide it is.
 #[derive(Clone, Copy, Debug)]
@@ -113,25 +113,27 @@ impl List {
         let mut y = r.y;
         if cols.iter().any(|c| !c.head.is_empty()) {
             for (c, (x, w)) in cols.iter().zip(&places) {
-                pen.text(Rect::new(*x, y, *w, look.row_h), c.head, 9.0, true, dark::DIM, c.align);
+                pen.text(Rect::new(*x, y, *w, look.row_h), c.head, 9.0, true, skin().dim, c.align);
             }
-            pen.fill(Rect::new(r.x, y + look.row_h - 1, r.w, 1), dark::RULE);
+            pen.fill(Rect::new(r.x, y + look.row_h - 1, r.w, 1), skin().rule);
             y += look.row_h;
         }
         let rows = Self::rows(r, look, cols);
         if total == 0 {
             let mid = Rect::new(r.x, y, r.w, (r.bottom() - y).min(look.row_h * 3));
-            pen.text(mid, look.empty, look.size, false, dark::FAINT, Align::Centre);
+            pen.text(mid, look.empty, look.size, false, skin().faint, Align::Centre);
             return;
         }
         let top = self.top.min(total.saturating_sub(rows));
         for i in top..(top + rows).min(total) {
             let line = Rect::new(r.x, y, r.w - MARK, look.row_h);
             if cursor == Some(i) {
-                pen.fill(line, if focus { dark::BTN_HI } else { dark::BTN });
+                pen.fill(line, if focus { skin().btn_hi } else { skin().btn });
             }
+            // The cursor's row is a key's colour: what's on it is drawn as on a key.
+            let on = |c| if cursor == Some(i) { skin().on_key(c) } else { c };
             for ((c, (x, w)), cell) in cols.iter().zip(&places).zip(row(i)) {
-                let color = cell.color.unwrap_or(dark::TEXT);
+                let color = on(cell.color.unwrap_or(skin().text));
                 pen.text(Rect::new(*x, y, *w, look.row_h), &cell.text, look.size, false, color, c.align);
             }
             if let Some((hits, prefix)) = hits.as_mut() {
@@ -145,7 +147,7 @@ impl List {
             let start = y - track;
             let h = ((track as f32 * rows as f32 / total as f32) as i32).max(look.row_h / 2);
             let at = start + ((track - h) as f32 * top as f32 / (total - rows) as f32).round() as i32;
-            pen.fill(Rect::new(r.right() - MARK, at, MARK, h), dark::DIM);
+            pen.fill(Rect::new(r.right() - MARK, at, MARK, h), skin().dim);
         }
     }
 }
@@ -153,6 +155,7 @@ impl List {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dark;
     use crate::pen::tests::{fonts, has};
     use crate::{Image, View};
 

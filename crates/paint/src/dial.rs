@@ -15,7 +15,7 @@
 use std::f32::consts::PI;
 
 use crate::meter::disc_color;
-use crate::{Align, Disc, Hits, Pen, Rect, dark, mix};
+use crate::{Align, Disc, Hits, Pen, Rect, mix, skin};
 
 /// Where the sweep starts, clockwise from three o'clock (y runs down): about half past seven.
 pub const DIAL_A0: f32 = 0.75 * PI;
@@ -138,7 +138,7 @@ impl Pen<'_, '_> {
         let (lx, ly, lrad) = circle(r);
         let (cx, cy) = (self.v.x(lx) as f32, self.v.y(ly) as f32);
         let rad = lrad * self.v.scale;
-        let dim = |c| if d.held { mix(dark::PANEL, c, 0.45) } else { c };
+        let dim = |c| if d.held { mix(skin().panel, c, 0.45) } else { c };
 
         match (d.ring, d.inner) {
             (Some(disc), None) => {
@@ -160,42 +160,50 @@ impl Pen<'_, '_> {
 
         let sweep = (DIAL_A0, DIAL_A0 + DIAL_SWEEP);
         let t = (rad * SWEEP_T).max(1.5);
-        self.sf.arc(cx, cy, rad * SWEEP_OUT, t, sweep, dark::WELL);
+        self.sf.arc(cx, cy, rad * SWEEP_OUT, t, sweep, skin().well);
         if d.pos > 0.0 {
-            let lit = if d.cursor { dark::AMBER } else { dark::DIM };
+            let lit = if d.cursor { skin().amber } else { skin().dim };
             self.sf.arc(cx, cy, rad * SWEEP_OUT, t, (DIAL_A0, dial_angle(d.pos)), dim(lit));
         }
         if let Some(m) = d.mark {
             let a = dial_angle(m);
             let (ca, sa) = (a.cos(), a.sin());
             let (i0, i1) = (rad * (SWEEP_OUT - SWEEP_T - 0.04), rad * (SWEEP_OUT + 0.04));
-            self.sf.line(cx + ca * i0, cy + sa * i0, cx + ca * i1, cy + sa * i1, 1.0, dim(dark::TEXT));
+            self.sf.line(cx + ca * i0, cy + sa * i0, cx + ca * i1, cy + sa * i1, 1.0, dim(skin().text));
         }
 
-        let body = if d.cursor { dark::BTN_HI } else { dark::BTN };
-        self.sf.disc(cx, cy, rad * BODY, dim(dark::BTN_EDGE));
+        let body = if d.cursor { skin().btn_hi } else { skin().btn };
+        self.sf.disc(cx, cy, rad * BODY, dim(skin().btn_edge));
         self.sf.disc(cx, cy, rad * BODY - self.v.scale.max(1.0), dim(body));
         let a = dial_angle(d.pos);
         let (ca, sa) = (a.cos(), a.sin());
         let (i0, i1) = (rad * BODY * 0.25, rad * BODY * 0.9);
         let w = (2.0 * self.v.scale).max(1.5);
-        self.sf.line(cx + ca * i0, cy + sa * i0, cx + ca * i1, cy + sa * i1, w, dim(dark::TEXT));
+        // The pointer is on the body, a key's colour.
+        self.sf.line(
+            cx + ca * i0,
+            cy + sa * i0,
+            cx + ca * i1,
+            cy + sa * i1,
+            w,
+            dim(skin().on_key(skin().text)),
+        );
 
         let label = Rect::new(r.x, r.y, r.w, 13);
-        let color = if d.cursor { dark::TEXT } else { dark::DIM };
+        let color = if d.cursor { skin().text } else { skin().dim };
         self.text(label, d.label, 9.0, true, dim(color), Align::Centre);
         let under = Rect::new(r.x, (ly + lrad).round() as i32 + 1, r.w, 13);
         match d.typing {
             Some(typed) => {
-                self.rrect(under, 2.0, dark::WELL, dark::AMBER);
-                self.text(under.inset(1), typed, 10.0, false, dark::READOUT, Align::Centre);
+                self.rrect(under, 2.0, skin().well, skin().amber);
+                self.text(under.inset(1), typed, 10.0, false, skin().readout, Align::Centre);
             }
             None if d.held => {
                 let said = format!("KNOB {}", d.value);
-                self.text(under, &said, 9.0, true, dark::DIM, Align::Centre);
+                self.text(under, &said, 9.0, true, skin().dim, Align::Centre);
             }
             None => {
-                let c = if d.cursor { dark::TEXT } else { dark::DIM };
+                let c = if d.cursor { skin().text } else { skin().dim };
                 self.text(under, d.value, 10.0, false, c, Align::Centre);
             }
         }
@@ -209,6 +217,7 @@ impl Pen<'_, '_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dark;
 
     #[test]
     fn the_law_gives_the_working_range_three_quarters() {

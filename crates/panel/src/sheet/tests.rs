@@ -1,6 +1,7 @@
 //! The picker by what it gives back, and by what's drawn into memory.
 
 use super::*;
+use lp_paint::dark;
 use lp_paint::{Fonts, Image, View};
 
 fn words(prefix: &str, n: usize) -> Vec<Word> {
