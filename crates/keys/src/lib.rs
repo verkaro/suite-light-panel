@@ -287,6 +287,9 @@ impl Keyboards {
             ));
         }
         let mut k = Keyboards { devs, held: [false; 768], want: grab_them };
+        // Keys already down count as held: a panel muntin starts on Alt+Tab opens with Alt still
+        // down, and its Tab repeating mustn't read as Tab alone.
+        k.read_held();
         k.settle();
         Ok(k)
     }
@@ -349,19 +352,24 @@ impl Keyboards {
     pub fn set_grab(&mut self, on: bool) {
         self.want = on;
         if on {
-            self.held = [false; 768];
-            for d in &self.devs {
-                let b = bits(d.file.as_raw_fd(), 0x18);
-                for (c, h) in self.held.iter_mut().enumerate() {
-                    *h |= has(&b, c);
-                }
-            }
+            self.read_held();
             self.settle();
             return;
         }
         for d in self.devs.iter_mut().filter(|d| d.grabbed) {
             grab(d.file.as_raw_fd(), false);
             d.grabbed = false;
+        }
+    }
+
+    /// Which keys are held, read afresh from each keyboard (`EVIOCGKEY`).
+    fn read_held(&mut self) {
+        self.held = [false; 768];
+        for d in &self.devs {
+            let b = bits(d.file.as_raw_fd(), 0x18);
+            for (c, h) in self.held.iter_mut().enumerate() {
+                *h |= has(&b, c);
+            }
         }
     }
 

@@ -9,11 +9,14 @@ the git log.
 - `lp-keys`, `lp-panel`: the frame's second key, **Alt+Tab** (Warren, 2026-11-12): under muntin,
   straight to the panel opened before this one, as on a desktop. `SWITCH_KEY`, `is_switch_key`,
   and `ask_switch`, which writes a byte into the pipe muntin names in `MUNTIN_SWITCH_FD`.
-  `lp_panel::run` takes the key itself, as it does Ctrl+Alt+Esc, with `Options::frame_key`: it
-  asks, then quits with exit 0. Under a muntin from before the key it's swallowed and nothing
+  `lp_panel::run` takes the key itself, as it does Ctrl+Alt+Esc, with `Options::frame_key`, its
+  repeats and release too: on the press it asks, then quits with exit 0. Under a muntin from before the key it's swallowed and nothing
   quits. Standing alone, a panel sees Alt+Tab as before. **What a tool has to do:** move its pin
   here, and say the key in `?` beside Ctrl+Alt+Esc where it says that one. A panel with a loop
   of its own (dexter-kms) calls `is_switch_key` and `ask_switch` itself.
+- `lp-keys`: `Keyboards::open` reads which keys are already held (`EVIOCGKEY`), as
+  `set_grab(true)` does, so a key down when a panel starts carries its modifiers: Alt still held
+  from Alt+Tab, a repeating Tab isn't Tab alone in the next panel. Nothing to do.
 - `lp-panel`: `keys::keys_over`'s key column is as wide as the widest key it shows, 44 at the
   least (as before) and half a column at most, so "Alt+Tab" isn't cut short. Nothing to do; a
   list of short keys draws as it did.

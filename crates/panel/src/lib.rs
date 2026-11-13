@@ -200,10 +200,11 @@ fn frame_quits(o: &Options, under: bool, k: &Key) -> bool {
     o.frame_key && under && lp_keys::is_frame_key(k)
 }
 
-/// Whether the loop takes `k` itself, to switch panels under the frame. It's taken whether or
-/// not the frame can be asked, so a panel never sees it.
+/// Whether the loop takes `k` itself, to switch panels under the frame: Alt+Tab in any state,
+/// its repeats and release too, so a panel never sees it. Only the press asks.
 fn frame_switch(o: &Options, under: bool, k: &Key) -> bool {
-    o.frame_key && under && lp_keys::is_switch_key(k)
+    let alt_tab = k.code == lp_keys::code::TAB && k.mods.alt && !k.mods.ctrl && !k.mods.meta;
+    o.frame_key && under && alt_tab
 }
 
 /// How long `poll` waits with nothing happening, so [`Panel::tick`] still comes round.
@@ -327,6 +328,9 @@ pub fn run(o: &Options, wake: &Wake, panel: &mut impl Panel) -> Result<(), Strin
                 break;
             }
             if frame_switch(o, under, &k) {
+                if !lp_keys::is_switch_key(&k) {
+                    continue;
+                }
                 if lp_keys::ask_switch() {
                     quit();
                     break;
@@ -431,5 +435,8 @@ mod tests {
         assert!(!frame_switch(&o, false, &sk));
         assert!(!frame_switch(&Options { frame_key: false, ..o.clone() }, true, &sk));
         assert!(!frame_switch(&o, true, &key(code::TAB, State::Press, false, false)));
+        assert!(frame_switch(&o, true, &key(code::TAB, State::Repeat, false, true)));
+        assert!(frame_switch(&o, true, &key(code::TAB, State::Release, false, true)));
+        assert!(!frame_switch(&o, true, &key(code::TAB, State::Press, true, true)));
     }
 }
