@@ -39,6 +39,9 @@ struct Program {
 impl Program {
     /// `$SHELL` (else `/bin/sh`), or `/bin/sh -c run`, in `$HOME`, with this environment but
     /// muntin's, `TERM=linux`, and no `COLORTERM`: only what's built is claimed.
+    /// `NCURSES_GPM_TERMS` is empty, since on a `linux` terminal ncurses asks gpm for the mouse,
+    /// which serves only a real console: asked from a pseudo-terminal, `htop` started from the
+    /// shell waited on a key and never redrew.
     fn new(run: Option<&str>) -> Program {
         let var = |k: &str| std::env::var_os(k).filter(|v| !v.is_empty());
         let (path, args) = match run {
@@ -48,10 +51,11 @@ impl Program {
         let mut env: Vec<(OsString, OsString)> = std::env::vars_os()
             .filter(|(k, _)| {
                 let k = k.to_string_lossy();
-                !k.starts_with("MUNTIN_") && k != "TERM" && k != "COLORTERM"
+                !k.starts_with("MUNTIN_") && k != "TERM" && k != "COLORTERM" && k != "NCURSES_GPM_TERMS"
             })
             .collect();
         env.push(("TERM".into(), "linux".into()));
+        env.push(("NCURSES_GPM_TERMS".into(), "".into()));
         let dir = var("HOME").map(PathBuf::from).unwrap_or_else(|| "/".into());
         Program { path, args, env, dir }
     }

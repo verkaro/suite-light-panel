@@ -6,6 +6,11 @@ the git log.
 
 ## 2026-11-13
 
+- `lp-panel`'s example `term`: the shell is given `NCURSES_GPM_TERMS` empty. On a terminal named
+  `linux`, ncurses asks gpm for the mouse, which serves only a real console; from a
+  pseudo-terminal, `htop` started from the shell waited on a key and never redrew (found at
+  transom's step 4 gate). A tool that runs a program on `lp-term` with `TERM=linux` does the
+  same.
 - `lp-term`: `Term::scrolled()`, every row that has gone into the scrollback, counted from the
   start, so a row keeps its number as old ones drop off or are cleared: transom's panel asks for
   scrollback rows by it. Nothing for a tool to do.
