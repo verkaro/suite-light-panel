@@ -61,3 +61,10 @@ saver goes in both, so:
 - dexter-kms gets it when it's on `lp-panel`.
 - Warren's gate: a step on a real screen isn't seen as a jump, and muntin's button turns it off
   and on, for muntin and the panels.
+
+## Later: `lp-term`, a terminal's emulator (`../Transom.md`)
+
+Not yet placed. A crate of its own, `libc` only, written fresh (Warren, 2026-11-13): the DEC
+parser, the grid, the PTY, keys to bytes, and the cells drawn in `lp-paint`. For transom, a
+terminal under muntin, and for a `--tty` shown in a screen. `../Transom.md`, "The suite's half"
+and steps 1 and 2, has what it is.
