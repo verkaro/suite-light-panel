@@ -20,6 +20,14 @@ pub fn keys_over(pen: &mut Pen, list: &[Declared], screens: &[&str], r: Rect) {
     const LINE: i32 = 18;
     let top = r.y + 42;
     let (mut x, mut y) = (r.x + 16, top);
+    // The keys' column: as wide as the widest key shown ("Alt+Tab"), never under 44 or over half.
+    let widest = list
+        .iter()
+        .filter(|d| screens.contains(&d.screen.as_str()))
+        .map(|d| pen.width(shown(&d.key), 11.0, true).ceil() as i32)
+        .max()
+        .unwrap_or(0);
+    let kw = widest.clamp(44, col / 2);
     let next = |x: &mut i32, y: &mut i32| {
         *y += LINE;
         if *y + LINE > r.bottom() - 10 {
@@ -42,9 +50,16 @@ pub fn keys_over(pen: &mut Pen, list: &[Declared], screens: &[&str], r: Rect) {
         );
         next(&mut x, &mut y);
         for d in here {
-            pen.text(Rect::new(x, y, 44, LINE), shown(&d.key), 11.0, true, dark::TEXT, Align::Left);
+            pen.text(Rect::new(x, y, kw, LINE), shown(&d.key), 11.0, true, dark::TEXT, Align::Left);
             let does = if d.note.is_empty() { d.does.clone() } else { format!("{} · {}", d.does, d.note) };
-            pen.text(Rect::new(x + 48, y, col - 56, LINE), &does, 11.0, false, dark::DIM, Align::Left);
+            pen.text(
+                Rect::new(x + kw + 4, y, col - kw - 12, LINE),
+                &does,
+                11.0,
+                false,
+                dark::DIM,
+                Align::Left,
+            );
             next(&mut x, &mut y);
         }
         next(&mut x, &mut y);

@@ -93,7 +93,8 @@ pub struct Options<'a> {
     pub grab: bool,
     /// The mice, touchpads and touchscreens read; else keys only.
     pub pointer: bool,
-    /// Under muntin, [`lp_keys::FRAME_KEY`] quits before the panel sees it.
+    /// Under muntin, [`lp_keys::FRAME_KEY`] quits before the panel sees it, and
+    /// [`lp_keys::SWITCH_KEY`] asks muntin for the panel before this one, then quits.
     pub frame_key: bool,
     /// The panel's own way out, for what's said when it isn't on a console ("q or Ctrl+C").
     pub quit_keys: &'a str,
@@ -197,6 +198,12 @@ impl Waker {
 /// Whether the loop takes `k` itself, to quit for the frame.
 fn frame_quits(o: &Options, under: bool, k: &Key) -> bool {
     o.frame_key && under && lp_keys::is_frame_key(k)
+}
+
+/// Whether the loop takes `k` itself, to switch panels under the frame. It's taken whether or
+/// not the frame can be asked, so a panel never sees it.
+fn frame_switch(o: &Options, under: bool, k: &Key) -> bool {
+    o.frame_key && under && lp_keys::is_switch_key(k)
 }
 
 /// How long `poll` waits with nothing happening, so [`Panel::tick`] still comes round.
@@ -319,6 +326,14 @@ pub fn run(o: &Options, wake: &Wake, panel: &mut impl Panel) -> Result<(), Strin
                 quit();
                 break;
             }
+            if frame_switch(o, under, &k) {
+                if lp_keys::ask_switch() {
+                    quit();
+                    break;
+                }
+                eprintln!("{name}: {} needs a newer muntin", lp_keys::SWITCH_KEY);
+                continue;
+            }
             let mut ctl = Ctl::default();
             dirty |= panel.key(&k, &mut ctl);
             if let Some(n) = ctl.vt {
@@ -406,5 +421,15 @@ mod tests {
         assert!(!frame_quits(&o, false, &fk));
         assert!(!frame_quits(&Options { frame_key: false, ..o.clone() }, true, &fk));
         assert!(!frame_quits(&o, true, &key(code::ESC, State::Press, false, false)));
+    }
+
+    #[test]
+    fn the_switch_key_is_taken_only_under_the_frame_and_when_asked() {
+        let sk = key(code::TAB, State::Press, false, true);
+        let o = Options::default();
+        assert!(frame_switch(&o, true, &sk));
+        assert!(!frame_switch(&o, false, &sk));
+        assert!(!frame_switch(&Options { frame_key: false, ..o.clone() }, true, &sk));
+        assert!(!frame_switch(&o, true, &key(code::TAB, State::Press, false, false)));
     }
 }

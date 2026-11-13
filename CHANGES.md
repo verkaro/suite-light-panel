@@ -6,6 +6,18 @@ the git log.
 
 ## 2026-11-12
 
+- `lp-keys`, `lp-panel`: the frame's second key, **Alt+Tab** (Warren, 2026-11-12): under muntin,
+  straight to the panel opened before this one, as on a desktop. `SWITCH_KEY`, `is_switch_key`,
+  and `ask_switch`, which writes a byte into the pipe muntin names in `MUNTIN_SWITCH_FD`.
+  `lp_panel::run` takes the key itself, as it does Ctrl+Alt+Esc, with `Options::frame_key`: it
+  asks, then quits with exit 0. Under a muntin from before the key it's swallowed and nothing
+  quits. Standing alone, a panel sees Alt+Tab as before. **What a tool has to do:** move its pin
+  here, and say the key in `?` beside Ctrl+Alt+Esc where it says that one. A panel with a loop
+  of its own (dexter-kms) calls `is_switch_key` and `ask_switch` itself.
+- `lp-panel`: `keys::keys_over`'s key column is as wide as the widest key it shows, 44 at the
+  least (as before) and half a column at most, so "Alt+Tab" isn't cut short. Nothing to do; a
+  list of short keys draws as it did.
+
 - `lp-panel`: `sheet`, the FROM, verb, TO sheet (`Picker`, `Lists`, `Word`, `Line`, `Did`),
   moved in from focusrite-ctrl at `052c497` for jackbay (jackbay's `docs/dev/SPEC.md`, 8.2).
   Nothing for a tool to do. focusrite-ctrl may move its PATCH onto it at its own pace, its knobs'

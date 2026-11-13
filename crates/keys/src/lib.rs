@@ -107,6 +107,32 @@ pub fn is_frame_key(k: &Key) -> bool {
     k.state == State::Press && k.mods.ctrl && k.mods.alt && k.code == code::ESC
 }
 
+/// The key that, under muntin, goes straight to the panel opened before this one: Alt+Tab
+/// (Warren, 2026-11-12), one hand, as on a desktop. Ctrl and the meta key not held; Shift may
+/// be. A panel acts on it only when muntin gave it the way to say so ([`ask_switch`]): it says
+/// so, then quits as on [`FRAME_KEY`]. Standing alone, the key does nothing.
+pub const SWITCH_KEY: &str = "Alt+Tab";
+
+/// Whether `k` is [`SWITCH_KEY`], pressed.
+pub fn is_switch_key(k: &Key) -> bool {
+    k.state == State::Press && k.mods.alt && !k.mods.ctrl && !k.mods.meta && k.code == code::TAB
+}
+
+/// Under muntin, asks it to open the panel before this one once this one has quit: a byte into
+/// the pipe it gave, named by `MUNTIN_SWITCH_FD`. False when there's no such pipe (standing
+/// alone, or a muntin from before the key), and then nothing should quit.
+pub fn ask_switch() -> bool {
+    if !under_frame() {
+        return false;
+    }
+    let Some(fd) = std::env::var("MUNTIN_SWITCH_FD").ok().and_then(|v| v.parse::<i32>().ok()) else {
+        return false;
+    };
+    // SAFETY: one byte from a static into an fd muntin left open for it; a bad fd fails, and
+    // that's said.
+    unsafe { libc::write(fd, b"s".as_ptr().cast(), 1) == 1 }
+}
+
 /// Whether the frame started this program: it sets `MUNTIN_TOOL` to the tool's id.
 pub fn under_frame() -> bool {
     std::env::var_os("MUNTIN_TOOL").is_some_and(|v| !v.is_empty())
@@ -421,6 +447,25 @@ mod tests {
         assert!(!is_frame_key(&k(code::ESC, State::Press, true, false)));
         assert!(!is_frame_key(&k(code::ESC, State::Press, false, true)));
         assert!(!is_frame_key(&k(code::ENTER, State::Press, true, true)));
+    }
+
+    #[test]
+    fn the_switch_key() {
+        let k = |code, state, ctrl, alt| Key {
+            code,
+            state,
+            mods: Mods { ctrl, alt, ..Mods::default() },
+            ch: None,
+        };
+        assert!(is_switch_key(&k(code::TAB, State::Press, false, true)));
+        let mut shifted = k(code::TAB, State::Press, false, true);
+        shifted.mods.shift = true;
+        assert!(is_switch_key(&shifted));
+        assert!(!is_switch_key(&k(code::TAB, State::Repeat, false, true)));
+        assert!(!is_switch_key(&k(code::TAB, State::Release, false, true)));
+        assert!(!is_switch_key(&k(code::TAB, State::Press, false, false)));
+        assert!(!is_switch_key(&k(code::TAB, State::Press, true, true)));
+        assert!(!is_switch_key(&k(code::ESC, State::Press, false, true)));
     }
 
     #[test]
