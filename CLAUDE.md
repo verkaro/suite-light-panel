@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 The pieces a Dexter-family tool needs to put its front panel on a whole screen, with nothing
-between it and the hardware: no X, no Wayland, no browser, no terminal. Four crates, each
+between it and the hardware: no X, no Wayland, no browser, no terminal. Five crates, each
 needing only `libc` and each other (plus `miniz_oxide` for PNG):
 
 - `lp-kms`: the screen through DRM/KMS, two dumb buffers flipped on the vertical blank, and the
@@ -22,6 +22,11 @@ needing only `libc` and each other (plus `miniz_oxide` for PNG):
 - `lp-panel`: the loop a panel runs on the other three (`run` and the `Panel` trait), the
   pipe that wakes it, and `snapshot`, the same panel run with no screen for its tests. Also
   what takes keys: the command bar (`bar`), a line being typed (`line`), and `?` (`keys`).
+- `lp-term`: a terminal's emulator, for transom (`../Transom.md`): the DEC parser and the grid
+  it keeps (`Term`), no I/O and no dependencies. Every output capability of `infocmp linux` has
+  a test (`linux_terminfo`), since `TERM=linux` claims them; a sequence added is claimed only
+  once it's tested. `width.sh` writes `width_table.rs` from glibc's charmap: run it, never edit
+  the table. GPL terminals are read, never copied.
 
 It follows `../suite-audio-libs`'s rules and works the same way: tools pin it by git commit and
 patch it to this folder in a `.cargo/config.toml` kept out of git. Only shared code belongs here.
@@ -38,7 +43,7 @@ cargo test -p lp-paint dial        # one crate, tests whose names hold "dial"
 cargo run -p lp-panel --example parts -- out.png   # every part, drawn to a PNG
 ```
 
-The crates live in `crates/kms`, `crates/keys`, `crates/paint` and `crates/panel`; their tests
+The crates live in `crates/kms`, `crates/keys`, `crates/paint`, `crates/panel` and `crates/term`; their tests
 are unit tests beside the code. Two kinds pass quietly when what they need is missing, so a
 green run here can hide them:
 - the comparisons with `page-kit.js` (`lp_keys::common`, `lp_paint::dark`) read

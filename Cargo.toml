@@ -13,5 +13,6 @@ lp-kms = { path = "crates/kms" }
 lp-keys = { path = "crates/keys" }
 lp-paint = { path = "crates/paint" }
 lp-panel = { path = "crates/panel" }
+lp-term = { path = "crates/term" }
 libc = "0.2"
 miniz_oxide = "0.8"

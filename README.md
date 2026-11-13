@@ -65,6 +65,16 @@ lp-kms = { git = "https://github.com/verkaro/suite-light-panel", rev = "COMMIT" 
   tool's keys over the screen (`keys::keys_over`), and the patch sheet, FROM, the verb and TO
   with the lines staged (`sheet::Picker`). `cargo run -p lp-panel --example parts --
   out.png` draws every part.
+- `lp-term`: a terminal's emulator, written fresh for transom (Warren, 2026-11-13), with no
+  dependencies. `Term` reads the bytes a shell writes and keeps what they draw: a grid of cells
+  (a character, the marks joined to it, two colours, the attributes, a wide character's two
+  halves), the cursor, the modes, the scroll region, the tabs, the alternate screen and a
+  scrollback of fixed length, with the rows changed since last asked and the answers a program
+  asked for waiting to be written back. Its parser is DEC's state machine as vt100.net
+  publishes it, in UTF-8; widths are glibc's (`width.sh` writes the table), so the grid counts
+  cells as the programs drawing into it do. It holds what `TERM=linux` claims, each of
+  `infocmp linux`'s capabilities tested. Still to come: the PTY, keys to bytes, and the cells
+  drawn in `lp-paint`.
 
 ## Needs
 

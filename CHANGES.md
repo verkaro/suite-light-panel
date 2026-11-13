@@ -4,6 +4,16 @@ What changed in an interface or a behaviour, newest first: a line for each, nami
 what a tool has to do about it. Read it before moving a pin. Begun 2026-11-07; for before that,
 the git log.
 
+## 2026-11-13
+
+- `lp-term`, new: a terminal's emulator, for transom (`../Transom.md`, step 1), written fresh
+  (Warren, 2026-11-13). `Term::new(cols, rows, scrollback)`, `feed(bytes)`, `resize`; the grid
+  read by `row(i)` (`Row`, `Cell`, `Color`, `Attrs`, `Width`), `scrollback(i)`, `cursor()`,
+  `modes()`, `title()`, `palette()`; and what's taken once: `take_dirty()` (the rows changed),
+  `take_replies()` (to write to the shell), `take_bells()`. What `TERM=linux` claims, the
+  alternate screen and bracketed paste. `width(c)` counts cells as glibc does (Unicode
+  16.0.0, `UNICODE`). Nothing for a tool to do.
+
 ## 2026-11-12
 
 - `lp-keys`, `lp-panel`: the frame's second key, **Alt+Tab** (Warren, 2026-11-12): under muntin,
