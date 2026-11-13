@@ -200,7 +200,8 @@ fn in_session(sid: libc::pid_t) -> Vec<libc::pid_t> {
         .filter(|&p| {
             // `pid (comm) state ppid pgrp session ...`: the name may hold spaces and brackets.
             std::fs::read_to_string(format!("/proc/{p}/stat")).ok().is_some_and(|st| {
-                st.rsplit_once(')').and_then(|(_, rest)| rest.split_whitespace().nth(3)?.parse().ok()) == Some(sid)
+                st.rsplit_once(')').and_then(|(_, rest)| rest.split_whitespace().nth(3)?.parse().ok())
+                    == Some(sid)
             })
         })
         .collect()
