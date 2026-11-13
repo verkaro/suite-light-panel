@@ -226,6 +226,15 @@ unsafe fn child(
         if fd > 2 {
             libc::close(fd);
         }
+        // Nothing else of the parent's reaches the program: a panel's screen and keyboards,
+        // muntin's pipe. Marked, not closed, so the error pipe still says if exec fails.
+        // CLOSE_RANGE_CLOEXEC is Linux 5.11's; before it, one at a time.
+        if libc::close_range(3, libc::c_uint::MAX, libc::CLOSE_RANGE_CLOEXEC as libc::c_int) < 0 {
+            let max = libc::sysconf(libc::_SC_OPEN_MAX).clamp(256, 65536) as RawFd;
+            for fd in 3..max {
+                libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC);
+            }
+        }
         // What the parent ignores or blocks (Rust ignores SIGPIPE) would be inherited.
         let mut set: libc::sigset_t = std::mem::zeroed();
         libc::sigemptyset(&mut set);
@@ -352,6 +361,19 @@ mod tests {
         read_until(&p, Some("started"));
         p.hangup();
         assert_eq!(wait(&mut p), 128 + libc::SIGHUP);
+    }
+
+    #[test]
+    fn nothing_of_ours_is_left_open_in_it() {
+        // An fd of ours not marked close-on-exec, as a screen or a keyboard may be.
+        let fd = std::fs::File::open("/dev/null").unwrap();
+        // SAFETY: a copy of our own fd at a high number, closed below.
+        assert_eq!(unsafe { libc::dup2(fd.as_raw_fd(), 900) }, 900);
+        let (mut p, _home) = sh("[ -e /proc/$$/fd/900 ] && echo leaked; echo ok", 80, 24);
+        let out = read_until(&p, None);
+        unsafe { libc::close(900) };
+        assert_eq!(out, "ok\r\n");
+        assert_eq!(wait(&mut p), 0);
     }
 
     #[test]

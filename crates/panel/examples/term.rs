@@ -252,6 +252,8 @@ impl Panel for TermPanel {
             self.ended = Some(127);
             lp_panel::quit();
         }
+        // The scrollback may have been cleared (`CSI 3 J`) while scrolled back.
+        self.scroll = self.scroll.min(self.term.scrollback_len());
         let colours = self.colours.with_palette(self.term.palette());
         let modes = self.term.modes();
         let cursor = self.term.cursor();

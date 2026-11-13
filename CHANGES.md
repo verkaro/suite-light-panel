@@ -8,7 +8,8 @@ the git log.
 
 - `lp-term`: the PTY and the keys, for transom's step 2. `Pty::spawn(program, args, env, dir,
   cols, rows)`: the program in a session of its own on a pseudo-terminal, with the environment
-  given and nothing inherited; `read` and `write` without waiting, `resize`, `try_wait`,
+  given and nothing inherited, nor any fd of the caller's past the three; `read` and `write`
+  without waiting, `resize`, `try_wait`,
   `hangup` (SIGHUP to its group, so its jobs end too). `key_bytes(key, modes)`: what a key
   sends, as terminfo's `linux` has it (F1 `ESC [[A`, Home `ESC [1~`, Backspace DEL), Ctrl and
   a letter its control byte, Alt as ESC first. It now needs `libc` and `lp-keys`. Nothing for a
