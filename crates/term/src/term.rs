@@ -339,9 +339,13 @@ impl Screen {
     fn restore_cursor(&mut self) {
         let s = self.saved[usize::from(self.modes.alt_screen)];
         self.goto(s.row, s.col);
-        self.pending = s.pending && self.col == self.cols - 1;
         self.pen = s.pen;
         self.modes.origin = s.origin;
+        if s.origin {
+            // Saved before the region moved: kept in it, as origin mode keeps it.
+            self.row = self.row.clamp(self.top, self.bottom);
+        }
+        self.pending = s.pending && self.modes.wrap && self.col == self.cols - 1;
         self.charsets = s.charsets;
         self.gl = s.gl;
     }
@@ -507,6 +511,7 @@ impl Screen {
     /// The edge reached: on to the next row, marking this one as running on.
     fn wrap_line(&mut self) {
         self.lines[self.row].wrapped = true;
+        self.touch(self.row);
         self.col = 0;
         self.index();
     }
@@ -697,21 +702,13 @@ impl Screen {
         self.top = 0;
         self.bottom = rows - 1;
         self.dirty = vec![true; rows];
-        if self.col >= cols {
-            self.pending = false;
-        }
-        self.goto_keep(self.row, self.col);
+        // A wait at the old edge isn't one at the new.
+        self.pending = false;
+        self.goto(self.row, self.col);
         for s in &mut self.saved {
             s.row = s.row.min(rows - 1);
             s.col = s.col.min(cols - 1);
         }
-    }
-
-    /// `goto` without clearing a pending wrap.
-    fn goto_keep(&mut self, row: usize, col: usize) {
-        let pending = self.pending;
-        self.goto(row, col);
-        self.pending = pending;
     }
 }
 
@@ -900,7 +897,7 @@ impl Perform for Screen {
             (0, b'n') => match p.get(0) {
                 5 => self.reply("\x1b[0n"),
                 6 => {
-                    let row = if self.modes.origin { self.row - self.top } else { self.row };
+                    let row = if self.modes.origin { self.row.saturating_sub(self.top) } else { self.row };
                     let s = format!("\x1b[{};{}R", row + 1, self.col + 1);
                     self.reply(&s);
                 }

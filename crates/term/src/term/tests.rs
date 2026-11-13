@@ -30,6 +30,7 @@ fn check(t: &Term) {
     assert_eq!(s.tabs.len(), s.cols);
     assert!(s.row < s.rows && s.col < s.cols, "cursor {:?} in {}x{}", (s.row, s.col), s.cols, s.rows);
     assert!(s.top <= s.bottom && s.bottom < s.rows);
+    assert!(!s.pending || (s.modes.wrap && s.col == s.cols - 1), "a wait away from the edge");
     assert!(s.scrollback.len() <= s.max_scrollback);
     for line in s.lines.iter().chain(&s.other) {
         let c = &line.cells;
@@ -569,6 +570,12 @@ impl XorShift {
 fn random_bytes_break_nothing() {
     let pieces: &[&[u8]] = &[
         b"\x1b",
+        b"3",
+        b"4",
+        b"6",
+        b"6n",
+        b"?6h",
+        b"?7l",
         b"[",
         b"?",
         b";",
@@ -648,13 +655,23 @@ fn random_bytes_break_nothing() {
             let mut whole = t.clone();
             whole.feed(&bytes);
             let mut i = 0;
+            t.take_dirty();
             while i < bytes.len() {
                 let n = 1 + rng.below(64);
                 let end = (i + n).min(bytes.len());
+                let before = t.s.lines.clone();
                 t.feed(&bytes[i..end]);
                 check(&t);
+                let dirty = t.take_dirty();
+                for r in (0..rows).filter(|r| !dirty.contains(r)) {
+                    assert_eq!(
+                        t.s.lines[r], before[r],
+                        "{cols}x{rows} seed {seed}: row {r} changed unmarked"
+                    );
+                }
                 i = end;
             }
+            whole.take_dirty();
             assert_eq!(format!("{t:?}"), format!("{whole:?}"), "{cols}x{rows} seed {seed}: in pieces");
             // And again, the size changing between pieces.
             let mut t = Term::new(cols, rows, 5);
@@ -665,4 +682,11 @@ fn random_bytes_break_nothing() {
             }
         }
     }
+}
+
+#[test]
+fn origin_restored_above_the_region() {
+    let mut t = run(5, 5, "\x1b[?6h\x1b7\x1b[3;5r\x1b8\x1b[6n");
+    assert_eq!(t.take_replies(), b"\x1b[1;1R");
+    assert_eq!(at(&t), (2, 0), "kept in the region");
 }
