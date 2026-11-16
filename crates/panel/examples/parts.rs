@@ -11,8 +11,8 @@
 use lp_keys::common::{Declared, KEYS};
 use lp_paint::{
     Align, Cell, Column, Dial, Disc, Field, FieldState, Fonts, Hits, Image, KeyLook, List, ListLook, Marker,
-    Pen, Rect, Scale, Shell, ShellLevel, ShellShape, Skin, Surface, View, Wave, db_marks, knob_pos, lit_at,
-    set_skin, skin, write_png,
+    Pen, Rect, Scale, Shell, ShellLevel, ShellShape, Skin, Surface, Tier, View, Wave, db_marks, knob_pos,
+    lit_at, set_skin, skin, write_png,
 };
 use lp_panel::bar::{Bar, Opt};
 use lp_panel::keys::keys_over;
@@ -234,22 +234,33 @@ pub fn draw(sf: &mut Surface, fonts: &Fonts, keys: bool) -> Result<(), String> {
     pen.fill(Rect::new(10, 866, 1380, 470), skin().panel);
     picker.draw(&mut pen, &mut hits, Rect::new(236, 876, 928, 456), &lists);
 
-    // The shell meter, in the strips either side of the sheet: a quiet track, a hot one with its
-    // peak held, a clip latched, and three at the size of a wall of sixteen. The levels are
-    // dBFS through the thresholds a tool would supply (`lit_at`).
+    // The shell meter, in the strips either side of the sheet, each on its tier's card: playing
+    // back, armed and recording. A quiet track, a clip latched, a hot one with its peak held,
+    // and three at the size of a wall of sixteen. The levels are dBFS through the thresholds a
+    // tool would supply (`lit_at`).
     let shell = Shell::new(&ShellShape::default());
     let th = [-48.0, -42.0, -36.0, -30.0, -24.0, -18.0, -12.0, -9.0, -6.0, -4.0, -2.0, -1.0, 0.0];
-    let led = skin().shell_leds(shell.len(), 8);
     let marks = db_marks(&th, 5);
     let at = |db: f32| ShellLevel { lit: lit_at(&th, db), ..ShellLevel::default() };
     let hot = ShellLevel { peak: 10, ..at(-7.5) };
     let clip = ShellLevel { clip: true, ..at(-14.0) };
+    let led = |tier: Tier| skin().shell_leds(shell.len(), 8, skin().tier(tier));
     hits.section("");
-    pen.shell_marked(Rect::new(14, 880, 212, 212), &shell, &at(-30.0), &led, &marks);
-    pen.shell_marked(Rect::new(14, 1100, 212, 212), &shell, &clip, &led, &marks);
-    pen.shell_marked(Rect::new(1174, 880, 212, 212), &shell, &hot, &led, &marks);
-    for (i, lv) in [at(-52.0), at(-15.0), hot].iter().enumerate() {
-        pen.shell(Rect::new(1174 + 72 * i as i32, 1100, 68, 68), &shell, lv, &led);
+    for (r, tier, lv) in [
+        (Rect::new(14, 876, 212, 212), Tier::Playback, at(-30.0)),
+        (Rect::new(14, 1096, 212, 212), Tier::Armed, clip),
+        (Rect::new(1174, 876, 212, 212), Tier::Recording, hot),
+    ] {
+        pen.card(r, tier);
+        pen.shell_marked(r.inset(6), &shell, &lv, &led(tier), &marks);
+    }
+    for (i, (tier, lv)) in [(Tier::Playback, at(-52.0)), (Tier::Armed, at(-15.0)), (Tier::Recording, hot)]
+        .into_iter()
+        .enumerate()
+    {
+        let r = Rect::new(1174 + 72 * i as i32, 1096, 68, 78);
+        pen.card(r, tier);
+        pen.shell(r.inset(3), &shell, &lv, &led(tier));
     }
 
     if keys {

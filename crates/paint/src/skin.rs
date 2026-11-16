@@ -11,8 +11,33 @@
 //! [`Skin::on_key`], as the page's `onKey` does. Dark has no key colours: there it changes
 //! nothing.
 
-use crate::{LedColors, Rgb, dark, hex};
+use crate::{LedColors, Rgb, dark, hex, mix};
 use std::cell::Cell;
+
+/// What a track is doing, as the surface it's drawn on says it (Warren, 2026-11-16): the page
+/// itself while it plays back, lifted a little once it's armed, lifted more while it records.
+/// Never a colour of alarm: the same warm hue with more contrast, so the state reads across a
+/// room without a room that's all red. A track left out of a recording is the dark one among
+/// lifted ones.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Tier {
+    Playback,
+    Armed,
+    Recording,
+}
+
+impl Tier {
+    pub const ALL: [Tier; 3] = [Tier::Playback, Tier::Armed, Tier::Recording];
+
+    /// How far its surface is lifted from the page towards the skin's text, 0 to 1.
+    pub const fn lift(self) -> f32 {
+        match self {
+            Tier::Playback => 0.0,
+            Tier::Armed => 0.055,
+            Tier::Recording => 0.115,
+        }
+    }
+}
 
 /// What's drawn on a key in place of `text`, `dim`, `faint`, `amber`, `red` and `green`, on a
 /// skin whose keys are light (`page-kit.js`'s `key`).
@@ -187,10 +212,17 @@ impl Skin {
         LedColors::bands(n, self.lit, self.unlit)
     }
 
-    /// `dots` shell LEDs and the eye, in this skin's bands: green to LED `amber_from`, then amber,
-    /// the eye red ([`LedColors::shell`]).
-    pub fn shell_leds(&self, dots: usize, amber_from: usize) -> LedColors {
-        LedColors::shell(dots, amber_from, self.lit, self.unlit)
+    /// The surface of a [`Tier`]: the page's `bg` lifted towards `text`, so it stays the skin's
+    /// own warm colour and only gains contrast.
+    pub fn tier(&self, t: Tier) -> Rgb {
+        mix(self.bg, self.text, t.lift())
+    }
+
+    /// `dots` shell LEDs and the eye, in this skin's bands (green to LED `amber_from`, then amber,
+    /// the eye red), unlit on `ground`, which is a tier's surface ([`Skin::tier`]):
+    /// [`LedColors::shell`].
+    pub fn shell_leds(&self, dots: usize, amber_from: usize, ground: Rgb) -> LedColors {
+        LedColors::shell(dots, amber_from, self.lit, ground)
     }
 
     /// Every solid colour by the page's name for it.
@@ -255,6 +287,7 @@ pub fn set_skin(s: &'static Skin) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::UNLIT_MIX;
 
     /// A skin's block in page-kit.js, by its name there.
     fn block<'a>(js: &'a str, name: &str) -> &'a str {
@@ -379,5 +412,80 @@ mod tests {
         assert_eq!(skin(), &Skin::SEVENTIES);
         std::thread::spawn(|| assert_eq!(skin(), &Skin::DARK)).join().unwrap();
         set_skin(&Skin::DARK);
+    }
+
+    /// Luminance, by the contrast with black (it only grows with it).
+    fn lum(c: Rgb) -> f32 {
+        contrast(c, 0)
+    }
+
+    #[test]
+    fn a_tracks_surface_is_the_page_lifted_and_every_part_stays_readable_on_it() {
+        let mut unlit_seen = Vec::new();
+        for k in Skin::ALL {
+            let tiers: Vec<Rgb> = Tier::ALL.iter().map(|&t| k.tier(t)).collect();
+            assert_eq!(tiers[0], k.bg, "{}: playing back is the page", k.name);
+            assert!(lum(tiers[0]) < lum(tiers[1]) && lum(tiers[1]) < lum(tiers[2]), "{}: each lifts", k.name);
+            // The same hue: every channel stays between the page's and the text's, so it can
+            // only have gained contrast, never turned a colour.
+            for &c in &tiers {
+                for s in [16, 8, 0] {
+                    let (a, b, x) = ((k.bg >> s) & 0xff, (k.text >> s) & 0xff, (c >> s) & 0xff);
+                    assert!(x >= a.min(b) && x <= a.max(b), "{}: {c:06x}", k.name);
+                }
+            }
+            let mut unlit = Vec::new();
+            for &g in &tiers {
+                assert!(contrast(k.text, g) >= 6.5, "{}: a name on {g:06x}", k.name);
+                assert!(contrast(k.dim, g) >= 4.5, "{}: a number on {g:06x}", k.name);
+                let leds = k.shell_leds(12, 8, g);
+                for (i, (lit, off)) in leds.lit.iter().zip(&leds.unlit).enumerate() {
+                    // The tightest is 70s's red on its recording tier, 2.9: a change that makes
+                    // any worse should fail here, not be seen on a screen.
+                    assert!(contrast(*lit, g) >= 2.8, "{}: lit LED {i} on {g:06x}", k.name);
+                    unlit.push(contrast(*off, g));
+                    assert!(
+                        contrast(*off, g) >= 1.15,
+                        "{}: the scale's shape shows: LED {i} on {g:06x}",
+                        k.name
+                    );
+                    assert!(contrast(*off, g) <= 1.7, "{}: unlit LED {i} stays quiet on {g:06x}", k.name);
+                }
+            }
+            unlit_seen.extend(unlit);
+        }
+        assert!(unlit_seen.len() == 2 * 3 * 13);
+    }
+
+    #[test]
+    fn the_scale_shows_as_well_on_every_tier() {
+        // Held by what the LED is on: its contrast with it moves little from tier to tier.
+        for k in Skin::ALL {
+            for band in 0..3 {
+                let c: Vec<f32> = Tier::ALL
+                    .iter()
+                    .map(|&t| contrast(mix(k.tier(t), k.lit[band], UNLIT_MIX), k.tier(t)))
+                    .collect();
+                let (lo, hi) =
+                    (c.iter().cloned().fold(f32::MAX, f32::min), c.iter().cloned().fold(0.0, f32::max));
+                assert!(hi - lo <= 0.25, "{} band {band}: {c:?}", k.name);
+            }
+        }
+    }
+
+    #[test]
+    fn a_card_is_its_tiers_surface_rounded() {
+        let Ok(fonts) = crate::Fonts::terminus(None) else { return };
+        for tier in Tier::ALL {
+            let mut img = crate::Image::new(120, 80);
+            let mut sf = img.surface();
+            sf.clear(0x010203);
+            let mut pen = crate::Pen { sf: &mut sf, fonts: &fonts, v: crate::View::fit(120, 80, 120, 80) };
+            pen.card(crate::Rect::new(10, 10, 100, 60), tier);
+            let px = |x: usize, y: usize| img.px[y * 120 + x];
+            assert_eq!(px(60, 40), skin().tier(tier), "{tier:?}: the surface");
+            assert_eq!(px(10, 10), 0x010203, "{tier:?}: a rounded corner leaves the page");
+            assert_ne!(px(60, 10), skin().tier(tier), "{tier:?}: a hairline round it");
+        }
     }
 }

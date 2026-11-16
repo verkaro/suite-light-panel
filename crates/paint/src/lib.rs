@@ -30,8 +30,10 @@ pub use meter::{Disc, LedColors, disc_led, ladder};
 pub use parts::{Field, FieldState, KeyLook};
 pub use pen::{Align, Pen};
 pub use png::write_png;
-pub use shell::{Dot, GOLDEN_B, Placed, Shell, ShellLevel, ShellShape, db_marks, led_shell, lit_at};
-pub use skin::{KeyColors, Skin, contrast, set_skin, skin};
+pub use shell::{
+    Dot, GOLDEN_B, Placed, Shell, ShellLevel, ShellShape, UNLIT_MIX, db_marks, led_shell, lit_at,
+};
+pub use skin::{KeyColors, Skin, Tier, contrast, set_skin, skin};
 pub use wave::{Marker, Scale, Wave};
 
 /// 0x00RRGGBB.

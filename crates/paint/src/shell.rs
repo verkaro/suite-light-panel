@@ -19,7 +19,7 @@
 //! is [`Placed::eye`], for a click that clears the latch.
 //!
 //! [`Shell::new`] is geometry only, no pixels, and is made once per layout. [`led_shell`] draws.
-//! In a skin's colours: [`crate::Skin::shell_leds`].
+//! In a skin's colours, on a track's surface: [`crate::Skin::shell_leds`], [`crate::Tier`].
 
 use crate::{LedColors, Pen, Rect, Rgb, Surface, mix, skin};
 
@@ -279,10 +279,16 @@ impl Pen<'_, '_> {
     }
 }
 
+/// How far an unlit LED is from its ground towards its lit colour: far enough to show the scale's
+/// shape, near enough to stay quiet. Held by what it's unlit *on*, not by a colour of its own, so
+/// it reads as well on a recording tier as on the page.
+pub const UNLIT_MIX: f32 = 0.17;
+
 impl LedColors {
-    /// For a shell of `dots` LEDs and its eye: green to LED `amber_from`, amber from it, and
-    /// the eye, the last, in the bands' red.
-    pub fn shell(dots: usize, amber_from: usize, lit: [Rgb; 3], unlit: [Rgb; 3]) -> LedColors {
+    /// For a shell of `dots` LEDs and its eye: green to LED `amber_from`, amber from it, and the
+    /// eye, the last, in the bands' red. Unlit, each is [`UNLIT_MIX`] of the way from `ground`,
+    /// the surface it's on ([`crate::Skin::tier`]), to its lit colour.
+    pub fn shell(dots: usize, amber_from: usize, lit: [Rgb; 3], ground: Rgb) -> LedColors {
         let band = |k: usize| {
             if k >= dots {
                 2
@@ -294,7 +300,7 @@ impl LedColors {
         };
         LedColors {
             lit: (0..=dots).map(|k| lit[band(k)]).collect(),
-            unlit: (0..=dots).map(|k| unlit[band(k)]).collect(),
+            unlit: (0..=dots).map(|k| mix(ground, lit[band(k)], UNLIT_MIX)).collect(),
         }
     }
 }
@@ -453,12 +459,16 @@ mod tests {
     }
 
     const LIT: [Rgb; 3] = [hex("#56d364"), hex("#ffb020"), hex("#ff4b3e")];
-    const UNLIT: [Rgb; 3] = [hex("#1d2a1f"), hex("#352a15"), hex("#361b17")];
+    const GROUND: Rgb = 0x101010;
+    /// What a band's LED is when unlit, on `GROUND`.
+    fn unlit(band: usize) -> Rgb {
+        mix(GROUND, LIT[band], UNLIT_MIX)
+    }
 
     // Twelve LEDs and the eye.
     fn draw(level: ShellLevel) -> (Image, Placed) {
         let s = Shell::new(&ShellShape::default());
-        let c = LedColors::shell(12, 8, LIT, UNLIT);
+        let c = LedColors::shell(12, 8, LIT, GROUND);
         let mut img = Image::new(300, 300);
         let mut sf = img.surface();
         sf.clear(0x101010);
@@ -474,7 +484,7 @@ mod tests {
     #[test]
     fn the_eye_is_an_led_like_the_rest_dim_when_out_and_red_when_lit() {
         let (img, p) = draw(ShellLevel::default());
-        assert_eq!(at(&img, &p.eye), UNLIT[2]);
+        assert_eq!(at(&img, &p.eye), unlit(2));
         let (img, p) = draw(ShellLevel { lit: 13.0, ..ShellLevel::default() });
         assert_eq!(at(&img, &p.eye), LIT[2]);
         // Flat: every pixel inside it, short of the rim a clip gets, is the one colour.
@@ -496,7 +506,7 @@ mod tests {
 
     #[test]
     fn the_leading_led_is_lit_by_its_fraction_and_the_peak_stands_apart() {
-        let (green, off) = (LIT[0], UNLIT[0]);
+        let (green, off) = (LIT[0], unlit(0));
         let (img, p) = draw(ShellLevel { lit: 3.5, ..ShellLevel::default() });
         assert_eq!(at(&img, &p.dots[2]), green);
         let half = at(&img, &p.dots[3]);
@@ -523,7 +533,7 @@ mod tests {
             &few,
         );
         assert!(img.px.iter().all(|&p| p == 0x101010));
-        let c = LedColors::shell(12, 8, [1, 2, 3], [4, 5, 6]);
+        let c = LedColors::shell(12, 8, [0x10, 0x20, 0x30], 0);
         let mut sf = img.surface();
         for lit in [f32::NAN, f32::INFINITY, -3.0, 1e9] {
             led_shell(&mut sf, Rect::new(0, 0, 100, 100), &s, &ShellLevel { lit, peak: 99, clip: false }, &c);
@@ -534,13 +544,16 @@ mod tests {
 
     #[test]
     fn the_shell_bands_are_green_then_amber_then_the_eye_red() {
-        let c = LedColors::shell(12, 8, [1, 2, 3], [4, 5, 6]);
+        let c = LedColors::shell(12, 8, [0x10, 0x20, 0x30], 0);
         assert_eq!(c.lit.len(), 13);
-        assert_eq!(c.lit[7], 1);
-        assert_eq!(c.lit[8], 2);
-        assert_eq!(c.lit[11], 2);
-        assert_eq!(c.lit[12], 3);
-        assert_eq!(c.unlit[12], 6);
+        assert_eq!(c.lit[7], 0x10);
+        assert_eq!(c.lit[8], 0x20);
+        assert_eq!(c.lit[11], 0x20);
+        assert_eq!(c.lit[12], 0x30);
+        assert_eq!(c.unlit[12], mix(0, 0x30, UNLIT_MIX));
+        // Unlit is on its ground: a lighter ground gives lighter unlit LEDs.
+        let lifted = LedColors::shell(12, 8, [0x10, 0x20, 0x30], 0x404040);
+        assert!(lifted.unlit.iter().zip(&c.unlit).all(|(a, b)| a > b));
     }
 
     #[test]
@@ -561,7 +574,7 @@ mod tests {
     fn through_pen(marks: Option<&[String]>, r: Rect) -> Option<Image> {
         let fonts = crate::Fonts::terminus(None).ok()?;
         let s = Shell::new(&ShellShape::default());
-        let c = LedColors::shell(12, 8, LIT, UNLIT);
+        let c = LedColors::shell(12, 8, LIT, GROUND);
         let mut img = Image::new(300, 300);
         let mut sf = img.surface();
         sf.clear(0x101010);

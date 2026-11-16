@@ -4,7 +4,7 @@
 //!
 //! Moved here from dexter-kms's `draw.rs` (2026-11-07), for Tape's panel and the ones after.
 
-use crate::{Fonts, Rect, Rgb, Surface, View, skin};
+use crate::{Fonts, Rect, Rgb, Surface, View, mix, skin};
 
 /// Where text sits across its box.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -28,6 +28,14 @@ impl Pen<'_, '_> {
     }
 
     /// A rounded rectangle, its corners `rad` and its edge a logical pixel wide.
+    /// A track's card: its [`Tier`]'s surface, rounded, with a hairline a little lighter than it.
+    /// Draw what's on it after, on `skin().tier(tier)`.
+    pub fn card(&mut self, r: Rect, tier: crate::Tier) {
+        let (fill, text) = (skin().tier(tier), skin().text);
+        let edge = mix(fill, text, if tier == crate::Tier::Playback { 0.07 } else { 0.14 });
+        self.rrect(r, 10.0, fill, edge);
+    }
+
     pub fn rrect(&mut self, r: Rect, rad: f32, fill: Rgb, edge: Rgb) {
         let d = self.v.rect(r);
         let t = self.v.len(1.0);

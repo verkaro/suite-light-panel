@@ -49,7 +49,9 @@ lp-kms = { git = "https://github.com/verkaro/suite-light-panel", rev = "COMMIT" 
     the danger is, and the last few LEDs are big enough to carry their dBFS inside them, all
     in one size. Each LED is a threshold the tool names (`lit_at` turns a level into a lit
     count, the leading LED lit by its fraction); the eye holds a latched clip with a rim.
-    `Shell::new(&ShellShape)` is its geometry, closed-form.
+    `Shell::new(&ShellShape)` is its geometry, closed-form. It sits on a track's `Tier` (`Pen::card`,
+    `Skin::tier`): the page while a track plays back, lifted a little when armed and more while
+    it records, the same warm hue and never an alarm colour.
 
   And the parts a panel is made of, in the dark skin: a key (`Pen::key`), a form's field
   (`Pen::field`), a list (`List`), a waveform, straight or in dB (`Pen::wave`), a dial with a

@@ -27,6 +27,18 @@ the git log.
   one more than the LEDs, the eye's red last. The ballistics, the hold and the latch are the
   tool's, as for the ladder and the disc. Drawn on the parts sheet; none of it has been on a
   real screen. **A tool:** nothing.
+- `lp-paint`: `Tier`, what a track is doing as the surface it's drawn on says it (Warren): the
+  page's own `bg` while it plays back, lifted 5.5% towards the skin's `text` once armed, 11.5%
+  while it records. The same warm hue with more contrast, never a colour of alarm, so a wall
+  of tracks that records reads across a room, and one left out is the dark one among them.
+  `Skin::tier(Tier)` is the surface, `Pen::card(rect, Tier)` the rounded card with its hairline.
+  A shell's unlit LEDs are no longer a colour of their own: they are `UNLIT_MIX` (17%) of the
+  way from the ground they're on to their lit colour, so the scale's shape shows as well on a
+  recording tier as on the page (on a fixed unlit colour its contrast fell from 1.29 to 1.01
+  there, and the shape was gone). **A tool that took `shell_leds` or `LedColors::shell` earlier
+  today:** both take the ground now, `skin().tier(t)`, in place of the unlit colours. Tests hold
+  each tier's name, number, lit and unlit LEDs to a contrast floor in both skins; the tightest
+  is 70s's red LED on its recording tier, 2.9:1.
 
 ## 2026-11-13
 
