@@ -1,9 +1,13 @@
-//! The shell: an LED meter that coils in on its own eye (Warren, 2026-11-16, for capstan's
-//! client). A chain of round LEDs winds in along a logarithmic spiral to a red eye at its centre,
-//! small and green on the outside, larger and amber as it closes in, the last one tangent to
-//! the eye, which is far bigger than any of them. So the red is what the whole figure is
-//! about, and it's the biggest thing on the face: green is the most of the meter and the least
-//! of what's read across a room.
+//! The shell: an LED meter that follows the golden spiral (Warren, 2026-11-16, for capstan's
+//! client). Round LEDs on a logarithmic spiral, each one's size in proportion to where it sits on
+//! it, so each is a fixed step bigger than the one before and each touches the next: the
+//! Fibonacci circles, a nautilus. Small and green at the coil, larger and amber as it opens
+//! out, and the last, the eye, the biggest and red. Nothing is placed by hand: the spiral
+//! and the one ratio make every LED.
+//!
+//! Read across a room, green is the most of the meter and the least of what matters. Growing
+//! the LEDs puts the weight where the danger is, and the last few are big enough to carry their
+//! dBFS inside them.
 //!
 //! The scale is coarse on purpose, about a dozen LEDs, each a threshold the tool names in dBFS
 //! (`lit_at` turns a level into how many are lit), the leading one lit by how far the level is
@@ -11,32 +15,32 @@
 //! hold and the clip's latch are the tool's, as for the ladder and the disc: this draws the state
 //! it's given.
 //!
-//! The eye is the last LED. Out, it's a ring only, so a wall of quiet tracks stays calm. Lit, it
-//! fills red, flat like the rest; latched, it gets a bright rim. Its place is [`Placed::eye`], for a click
-//! that clears the latch.
+//! The eye is the last LED, drawn as the others are; a latched clip gives it a bright rim. Its place
+//! is [`Placed::eye`], for a click that clears the latch.
 //!
 //! [`Shell::new`] is geometry only, no pixels, and is made once per layout. [`led_shell`] draws.
 //! In a skin's colours: [`crate::Skin::shell_leds`].
 
 use crate::{LedColors, Pen, Rect, Rgb, Surface, mix, skin};
 
-/// How a shell is wound. The defaults are what Warren settled on by eye (2026-11-16): twelve
-/// LEDs growing 2.6 times, the eye 1.2 times the last of them (it was 2.4, then 1.6: cut again), a crook
-/// round half a turn.
+/// The golden spiral's pitch: its radius multiplies by the golden ratio every quarter turn.
+pub const GOLDEN_B: f32 = 0.306_349;
+
+/// How a shell is wound.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ShellShape {
     /// LEDs before the eye (the eye is one more). At least 2.
     pub dots: usize,
-    /// The last LED's radius over the first's.
+    /// The eye's radius over the first LED's: how far the LEDs grow in all.
     pub growth: f32,
-    /// The last LED's radius over the eye's: under 1, so the coil arcs over it.
-    pub last_over_eye: f32,
-    /// How fast the spiral opens: its radius multiplies by `e^b` a radian. The golden spiral's
-    /// is 0.306. Smaller, the tail coils closer.
+    /// The spiral's pitch: its radius multiplies by `e^b` a radian. The golden spiral's is
+    /// [`GOLDEN_B`], the default. It must not turn far in a step, `ln(growth) / dots / b`, which
+    /// wants to stay under about 0.8 of a radian: a few LEDs growing a lot, or a pitch under
+    /// about 0.2, come round on themselves and overlap.
     pub b: f32,
-    /// Between neighbouring LEDs, in eye radii.
+    /// Between neighbouring LEDs, as a fraction of the two radii.
     pub gap: f32,
-    /// Where the tail starts round the eye, radians, clockwise from three o'clock.
+    /// Where the coil's first LED sits round its centre, radians, clockwise from three o'clock.
     pub start: f32,
     /// Wound the other way.
     pub mirror: bool,
@@ -44,15 +48,7 @@ pub struct ShellShape {
 
 impl Default for ShellShape {
     fn default() -> ShellShape {
-        ShellShape {
-            dots: 12,
-            growth: 2.6,
-            last_over_eye: 0.85,
-            b: 0.16,
-            gap: 0.10,
-            start: -0.4,
-            mirror: false,
-        }
+        ShellShape { dots: 12, growth: 6.0, b: GOLDEN_B, gap: 0.12, start: 2.4, mirror: false }
     }
 }
 
@@ -64,71 +60,47 @@ pub struct Dot {
     pub r: f32,
 }
 
-/// A shell's geometry: the LEDs on a canvas where the eye is at the origin with radius 1.
+/// A shell's geometry: the LEDs and the eye, as circles on a canvas whose scale is the first
+/// LED's distance from the spiral's centre.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Shell {
-    dots: Vec<Dot>,
-    /// Left, right, top, bottom, eye included.
+    /// The LEDs, then the eye.
+    circles: Vec<Dot>,
+    /// Left, right, top, bottom.
     bounds: (f32, f32, f32, f32),
 }
 
 /// A shell's circles in a rectangle, in pixels.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Placed {
-    /// The LEDs, from the tail in.
+    /// The LEDs, from the coil out.
     pub dots: Vec<Dot>,
     pub eye: Dot,
 }
 
 impl Shell {
-    /// The geometry for `shape`: each LED tangent to the next (less the gap), the last tangent
-    /// to the eye, the spiral's length solved so they meet exactly.
+    /// The geometry for `shape`. On the spiral `r = e^(b·θ)` the LED `i` sits at the angle that
+    /// takes the radius up by one step, `g = growth^(1/dots)`, and has a radius `c` times the
+    /// spiral's there; `c` is whatever makes two neighbours touch (less the gap), which has a
+    /// closed form, so every LED's place is exact.
     pub fn new(shape: &ShellShape) -> Shell {
         let n = shape.dots.max(2);
         let b = shape.b.max(0.02);
-        let gap = shape.gap.max(0.0);
-        let growth = shape.growth.max(1.0);
-        let last = shape.last_over_eye.clamp(0.05, 1.0);
+        let growth = shape.growth.max(1.05);
         let sign = if shape.mirror { -1.0f32 } else { 1.0 };
-        let rad: Vec<f32> = (0..n).map(|i| last / growth * growth.powf(i as f32 / (n - 1) as f32)).collect();
-        // The last LED's centre sits this far from the eye's.
-        let rin = 1.0 + last + gap;
-        // For a spiral of total angle `t`, ending at radius `rin`: the chain walked in from its
-        // outer end, each LED found by bisection to be tangent to the one before. Returns the
-        // chain and the angle its last LED fell at.
-        let march = |t: f32| -> (Vec<Dot>, f32) {
-            let at = |th: f32| {
-                let r = rin * (b * (t - th)).exp();
-                let a = shape.start + sign * th;
-                (a.cos() * r, a.sin() * r)
-            };
-            let first = at(0.0);
-            let mut dots = vec![Dot { x: first.0, y: first.1, r: rad[0] }];
-            let mut th = 0.0f32;
-            for i in 1..n {
-                let (p, want) = (dots[i - 1], rad[i - 1] + rad[i] + gap);
-                let (mut lo, mut hi) = (th, th + 1.5);
-                for _ in 0..50 {
-                    let m = (lo + hi) / 2.0;
-                    let q = at(m);
-                    if (q.0 - p.x).hypot(q.1 - p.y) < want { lo = m } else { hi = m }
-                }
-                th = hi;
-                let q = at(th);
-                dots.push(Dot { x: q.0, y: q.1, r: rad[i] });
-            }
-            (dots, th)
-        };
-        // Too short a spiral overshoots the eye (its last LED falls past `t`); too long, falls
-        // short of it. Bisect to where it lands.
-        let (mut lo, mut hi) = (0.05f32, 60.0f32);
-        for _ in 0..60 {
-            let m = (lo + hi) / 2.0;
-            if march(m).1 > m { lo = m } else { hi = m }
-        }
-        let (dots, _) = march((lo + hi) / 2.0);
-        let mut bounds = (-1.0f32, 1.0f32, -1.0f32, 1.0f32);
-        for d in &dots {
+        let g = growth.powf(1.0 / n as f32);
+        let step = g.ln() / b;
+        let chord = (1.0 + g * g - 2.0 * g * step.cos()).sqrt();
+        let c = chord / ((1.0 + g) * (1.0 + shape.gap.max(0.0)));
+        let circles: Vec<Dot> = (0..=n)
+            .map(|i| {
+                let radius = g.powi(i as i32);
+                let a = shape.start + sign * step * i as f32;
+                Dot { x: a.cos() * radius, y: a.sin() * radius, r: c * radius }
+            })
+            .collect();
+        let mut bounds = (f32::MAX, f32::MIN, f32::MAX, f32::MIN);
+        for d in &circles {
             bounds = (
                 bounds.0.min(d.x - d.r),
                 bounds.1.max(d.x + d.r),
@@ -136,16 +108,16 @@ impl Shell {
                 bounds.3.max(d.y + d.r),
             );
         }
-        Shell { dots, bounds }
+        Shell { circles, bounds }
     }
 
     /// LEDs before the eye.
     pub fn len(&self) -> usize {
-        self.dots.len()
+        self.circles.len() - 1
     }
 
     pub fn is_empty(&self) -> bool {
-        self.dots.is_empty()
+        self.len() == 0
     }
 
     /// Width over height of the whole figure, for a layout that gives it a cell.
@@ -160,7 +132,8 @@ impl Shell {
         let ox = r.x as f32 + r.w as f32 / 2.0 - (self.bounds.0 + self.bounds.1) / 2.0 * k;
         let oy = r.y as f32 + r.h as f32 / 2.0 - (self.bounds.2 + self.bounds.3) / 2.0 * k;
         let to = |d: &Dot| Dot { x: ox + d.x * k, y: oy + d.y * k, r: d.r * k };
-        Placed { dots: self.dots.iter().map(to).collect(), eye: to(&Dot { x: 0.0, y: 0.0, r: 1.0 }) }
+        let n = self.len();
+        Placed { dots: self.circles[..n].iter().map(to).collect(), eye: to(&self.circles[n]) }
     }
 }
 
@@ -214,15 +187,9 @@ pub fn led_shell(s: &mut Surface, r: Rect, shell: &Shell, level: &ShellLevel, c:
     }
     let a = if level.clip { 1.0 } else { amount(n) };
     let e = p.eye;
-    let (lit_c, off_c) = (c.lit[n], c.unlit[n]);
-    if a <= 0.0 {
-        // Out: a ring, no more.
-        s.ring(e.x, e.y, e.r, (e.r * 0.08).max(1.5), off_c);
-        return;
-    }
-    s.disc(e.x, e.y, e.r, mix(off_c, lit_c, a));
+    s.disc(e.x, e.y, e.r, mix(c.unlit[n], c.lit[n], a));
     if level.clip {
-        s.ring(e.x, e.y, e.r, (e.r * 0.1).max(2.0), mix(lit_c, 0xffffff, 0.7));
+        s.ring(e.x, e.y, e.r, (e.r * 0.1).max(2.0), mix(c.lit[n], 0xffffff, 0.7));
     }
 }
 
@@ -251,9 +218,10 @@ impl Pen<'_, '_> {
     }
 
     /// A shell with text inside some of its LEDs (`marks`, one an LED, empty for none: see
-    /// [`db_marks`]). Drawn bold in the largest Terminus that fits the bulb, dark on a lit LED and
-    /// dim on an unlit one, so the number is there whether or not the level has reached it. A
-    /// bulb too small for the smallest font is left blank, not crowded.
+    /// [`db_marks`]). All one size: the largest bold Terminus that fits the smallest bulb marked,
+    /// so the numbers read as a set. Dark on a lit LED and dim on an unlit one, so the number is
+    /// there whether or not the level has reached it. If even the smallest font doesn't fit that
+    /// bulb, none is drawn, not some.
     pub fn shell_marked(
         &mut self,
         r: Rect,
@@ -270,27 +238,34 @@ impl Pen<'_, '_> {
         }
         let lit = if level.lit.is_finite() { level.lit.clamp(0.0, (n + 1) as f32) } else { 0.0 };
         let placed = shell.place(r);
-        for (k, (d, text)) in placed.dots.iter().zip(marks).enumerate() {
-            if text.is_empty() {
-                continue;
+        let marked: Vec<(usize, &Dot, &String)> = placed
+            .dots
+            .iter()
+            .zip(marks)
+            .enumerate()
+            .filter(|(_, (_, t))| !t.is_empty())
+            .map(|(k, (d, t))| (k, d, t))
+            .collect();
+        let Some(smallest) = marked.iter().map(|(_, d, _)| d.r).reduce(f32::min) else { return };
+        let longest = marked.iter().map(|(_, _, t)| t.chars().count()).max().unwrap_or(0);
+        // Text no taller than a bulb's radius and a bit, and no wider than 0.78 of its width.
+        let mut px = smallest * 1.1;
+        let found = loop {
+            let (f, s) = self.fonts.pick(px, true);
+            if (f.height * s) as f32 <= smallest * 1.1 + 0.5
+                && (longest * f.width * s) as f32 <= smallest * 1.56
+            {
+                break Some((f, s));
             }
+            if px < 12.0 {
+                break None;
+            }
+            px -= 1.0;
+        };
+        let Some((f, s)) = found else { return };
+        for (k, d, text) in marked {
             let held = level.peak > 0 && k == level.peak - 1;
-            let on = held || lit - k as f32 >= 0.5;
-            let colour = if on { skin().bg } else { skin().dim };
-            // The largest font whose text sits inside the bulb's width (0.78 of it) and is
-            // not taller than a bulb's radius and a bit.
-            let mut px = d.r * 1.1;
-            let found = loop {
-                let (f, s) = self.fonts.pick(px, true);
-                if (f.height * s) as f32 <= d.r * 1.1 + 0.5 && f.measure(text, s) as f32 <= d.r * 1.56 {
-                    break Some((f, s));
-                }
-                if px < 12.0 {
-                    break None;
-                }
-                px -= 1.0;
-            };
-            let Some((f, s)) = found else { continue };
+            let colour = if held || lit - k as f32 >= 0.5 { skin().bg } else { skin().dim };
             let (w, h) = (f.measure(text, s), (f.height * s) as i32);
             f.draw(
                 self.sf,
@@ -335,74 +310,88 @@ mod tests {
         (a.x - b.x).hypot(a.y - b.y)
     }
 
-    /// Every default or odd shape the part is likely to be asked for.
+    /// The shapes the part is likely to be asked for: the golden pitch and a little either
+    /// side of it, for any number of LEDs and how far they grow, so long as no step turns more
+    /// than 0.8 of a radian (`ShellShape::b`).
     fn shapes() -> Vec<ShellShape> {
         let d = ShellShape::default();
         let mut v = vec![d];
-        for dots in [2, 3, 6, 8, 16, 24] {
-            v.push(ShellShape { dots, ..d });
+        for dots in [2, 3, 6, 8, 12, 16, 24] {
+            for growth in [2.0f32, 4.5, 8.0] {
+                for b in [0.25, GOLDEN_B, 0.4] {
+                    if growth.ln() / dots as f32 / b <= 0.8 {
+                        v.push(ShellShape { dots, growth, b, ..d });
+                    }
+                }
+            }
         }
-        for b in [0.08, 0.12, 0.306] {
-            v.push(ShellShape { b, ..d });
-        }
-        for last_over_eye in [0.2, 0.7, 1.0] {
-            v.push(ShellShape { last_over_eye, ..d });
-        }
-        v.push(ShellShape { growth: 1.0, ..d });
         v.push(ShellShape { mirror: true, ..d });
+        v.push(ShellShape { gap: 0.0, ..d });
+        v.push(ShellShape { start: -1.0, ..d });
         v
     }
 
     #[test]
-    fn leds_are_tangent_in_a_chain_and_the_last_to_the_eye() {
+    fn each_led_touches_the_next_less_the_gap() {
         for sh in shapes() {
             let s = Shell::new(&sh);
-            let eye = Dot { x: 0.0, y: 0.0, r: 1.0 };
-            for w in s.dots.windows(2) {
-                let want = w[0].r + w[1].r + sh.gap;
+            for w in s.circles.windows(2) {
+                let want = (w[0].r + w[1].r) * (1.0 + sh.gap);
                 assert!(
-                    (dist(&w[0], &w[1]) - want).abs() < 1e-3,
+                    (dist(&w[0], &w[1]) - want).abs() < 1e-4 * want.max(1.0),
                     "{sh:?}: {} for {want}",
                     dist(&w[0], &w[1])
                 );
             }
-            let last = s.dots.last().unwrap();
-            let want = eye.r + last.r + sh.gap;
-            assert!(
-                (dist(last, &eye) - want).abs() < 2e-3,
-                "{sh:?}: the last LED is {} from the eye",
-                dist(last, &eye)
-            );
         }
     }
 
     #[test]
-    fn nothing_overlaps_and_the_sizes_are_the_shape() {
+    fn the_sizes_are_one_ratio_a_step_and_the_eye_is_the_last() {
         for sh in shapes() {
             let s = Shell::new(&sh);
-            let n = s.len();
-            assert_eq!(n, sh.dots.max(2));
-            for i in 0..n {
-                for j in i + 2..n {
-                    assert!(
-                        dist(&s.dots[i], &s.dots[j]) >= s.dots[i].r + s.dots[j].r - 1e-3,
-                        "{sh:?}: LEDs {i} and {j} overlap"
-                    );
-                }
-                // The eye, except the last LED that touches it.
-                if i + 1 < n {
-                    let eye = Dot { x: 0.0, y: 0.0, r: 1.0 };
-                    assert!(
-                        dist(&s.dots[i], &eye) >= 1.0 + s.dots[i].r - 1e-3,
-                        "{sh:?}: LED {i} is in the eye"
-                    );
+            let n = sh.dots.max(2);
+            assert_eq!((s.len(), s.circles.len()), (n, n + 1));
+            let (first, eye) = (s.circles[0].r, s.circles[n].r);
+            assert!(
+                (eye / first - sh.growth.max(1.05)).abs() < 1e-3 * sh.growth,
+                "{sh:?}: grows {}",
+                eye / first
+            );
+            let step = s.circles[1].r / s.circles[0].r;
+            for w in s.circles.windows(2) {
+                assert!((w[1].r / w[0].r - step).abs() < 1e-4, "{sh:?}: a constant ratio");
+            }
+            // And each is the same distance from the spiral's centre as its size says: it's on
+            // the curve, not placed by hand.
+            let c = s.circles[0].r / s.circles[0].x.hypot(s.circles[0].y);
+            for d in &s.circles {
+                assert!((d.r / d.x.hypot(d.y) - c).abs() < 1e-4, "{sh:?}: size follows radius");
+            }
+        }
+    }
+
+    #[test]
+    fn nothing_overlaps() {
+        for sh in shapes() {
+            let s = Shell::new(&sh);
+            for i in 0..s.circles.len() {
+                for j in i + 2..s.circles.len() {
+                    let (a, b) = (&s.circles[i], &s.circles[j]);
+                    assert!(dist(a, b) >= a.r + b.r - 1e-3, "{sh:?}: LEDs {i} and {j} overlap");
                 }
             }
-            let (first, last) = (s.dots[0].r, s.dots[n - 1].r);
-            assert!((last - sh.last_over_eye.clamp(0.05, 1.0)).abs() < 1e-5);
-            assert!((last / first - sh.growth.max(1.0)).abs() < 1e-3);
-            assert!(s.dots.windows(2).all(|w| w[1].r >= w[0].r - 1e-6), "{sh:?}: grows");
         }
+    }
+
+    #[test]
+    fn the_defaults_are_the_golden_spiral() {
+        // A quarter turn of it is the golden ratio more radius.
+        let sh = ShellShape::default();
+        assert_eq!(sh.b, GOLDEN_B);
+        let phi = (1.0 + 5f32.sqrt()) / 2.0;
+        assert!((((std::f32::consts::FRAC_PI_2) * GOLDEN_B).exp() - phi).abs() < 1e-4);
+        assert_eq!(Shell::new(&sh).len(), 12);
     }
 
     #[test]
@@ -410,10 +399,9 @@ mod tests {
         let (a, b) = (ShellShape::default(), ShellShape { mirror: true, ..ShellShape::default() });
         let (sa, sb) = (Shell::new(&a), Shell::new(&b));
         assert_ne!(sa, sb);
-        let eye = Dot { x: 0.0, y: 0.0, r: 1.0 };
-        for (p, q) in sa.dots.iter().zip(&sb.dots) {
+        for (p, q) in sa.circles.iter().zip(&sb.circles) {
             assert!((p.r - q.r).abs() < 1e-6);
-            assert!((dist(p, &eye) - dist(q, &eye)).abs() < 2e-3);
+            assert!((p.x.hypot(p.y) - q.x.hypot(q.y)).abs() < 1e-4);
         }
     }
 
@@ -432,7 +420,6 @@ mod tests {
             }
             assert!(x0 >= r.x as f32 - 0.01 && x1 <= r.right() as f32 + 0.01, "{r:?} wide");
             assert!(y0 >= r.y as f32 - 0.01 && y1 <= r.bottom() as f32 + 0.01, "{r:?} tall");
-            // The limiting side is filled, the other centred.
             let (cx, cy) = ((x0 + x1) / 2.0, (y0 + y1) / 2.0);
             assert!((cx - (r.x as f32 + r.w as f32 / 2.0)).abs() < 0.01);
             assert!((cy - (r.y as f32 + r.h as f32 / 2.0)).abs() < 0.01);
@@ -465,15 +452,13 @@ mod tests {
         }
     }
 
+    const LIT: [Rgb; 3] = [hex("#56d364"), hex("#ffb020"), hex("#ff4b3e")];
+    const UNLIT: [Rgb; 3] = [hex("#1d2a1f"), hex("#352a15"), hex("#361b17")];
+
     // Twelve LEDs and the eye.
     fn draw(level: ShellLevel) -> (Image, Placed) {
         let s = Shell::new(&ShellShape::default());
-        let c = LedColors::shell(
-            12,
-            8,
-            [hex("#56d364"), hex("#ffb020"), hex("#ff4b3e")],
-            [hex("#1d2a1f"), hex("#352a15"), hex("#361b17")],
-        );
+        let c = LedColors::shell(12, 8, LIT, UNLIT);
         let mut img = Image::new(300, 300);
         let mut sf = img.surface();
         sf.clear(0x101010);
@@ -487,23 +472,22 @@ mod tests {
     }
 
     #[test]
-    fn the_eye_is_a_ring_when_out_and_red_when_lit() {
+    fn the_eye_is_an_led_like_the_rest_dim_when_out_and_red_when_lit() {
         let (img, p) = draw(ShellLevel::default());
-        assert_eq!(at(&img, &p.eye), 0x101010, "out: the middle is the background");
-        // The ring is drawn at the rim.
-        let rim = Dot { x: p.eye.x + p.eye.r - 1.0, ..p.eye };
-        assert_ne!(at(&img, &rim), 0x101010);
+        assert_eq!(at(&img, &p.eye), UNLIT[2]);
         let (img, p) = draw(ShellLevel { lit: 13.0, ..ShellLevel::default() });
-        let mid = Dot { x: p.eye.x + p.eye.r * 0.5, ..p.eye };
-        assert_eq!(at(&img, &mid), hex("#ff4b3e"));
+        assert_eq!(at(&img, &p.eye), LIT[2]);
+        // Flat: every pixel inside it, short of the rim a clip gets, is the one colour.
+        for (dx, dy) in [(0.0, 0.0), (0.5, 0.0), (-0.5, 0.0), (0.0, 0.5), (0.0, -0.6), (-0.3, -0.3)] {
+            let d = Dot { x: p.eye.x + dx * p.eye.r, y: p.eye.y + dy * p.eye.r, ..p.eye };
+            assert_eq!(at(&img, &d), LIT[2], "({dx}, {dy})");
+        }
     }
 
     #[test]
-    fn a_latched_clip_holds_the_eye_lit_whatever_the_level() {
+    fn a_latched_clip_holds_the_eye_lit_whatever_the_level_and_rims_it() {
         let (img, p) = draw(ShellLevel { lit: 2.0, clip: true, ..ShellLevel::default() });
-        let mid = Dot { x: p.eye.x + p.eye.r * 0.5, ..p.eye };
-        assert_eq!(at(&img, &mid), hex("#ff4b3e"));
-        // And the bright rim, which a lit eye alone hasn't.
+        assert_eq!(at(&img, &p.eye), LIT[2]);
         let rim = Dot { x: p.eye.x + p.eye.r - 1.0, ..p.eye };
         let (plain, p2) = draw(ShellLevel { lit: 13.0, ..ShellLevel::default() });
         let rim2 = Dot { x: p2.eye.x + p2.eye.r - 1.0, ..p2.eye };
@@ -512,8 +496,7 @@ mod tests {
 
     #[test]
     fn the_leading_led_is_lit_by_its_fraction_and_the_peak_stands_apart() {
-        let green = hex("#56d364");
-        let off = hex("#1d2a1f");
+        let (green, off) = (LIT[0], UNLIT[0]);
         let (img, p) = draw(ShellLevel { lit: 3.5, ..ShellLevel::default() });
         assert_eq!(at(&img, &p.dots[2]), green);
         let half = at(&img, &p.dots[3]);
@@ -531,12 +514,13 @@ mod tests {
         let mut img = Image::new(100, 100);
         let mut sf = img.surface();
         sf.clear(0x101010);
+        let few = LedColors::bands(12, [1, 2, 3], [4, 5, 6]);
         led_shell(
             &mut sf,
             Rect::new(0, 0, 100, 100),
             &s,
             &ShellLevel { lit: 5.0, ..ShellLevel::default() },
-            &LedColors::bands(12, [1, 2, 3], [4, 5, 6]),
+            &few,
         );
         assert!(img.px.iter().all(|&p| p == 0x101010));
         let c = LedColors::shell(12, 8, [1, 2, 3], [4, 5, 6]);
@@ -577,12 +561,7 @@ mod tests {
     fn through_pen(marks: Option<&[String]>, r: Rect) -> Option<Image> {
         let fonts = crate::Fonts::terminus(None).ok()?;
         let s = Shell::new(&ShellShape::default());
-        let c = LedColors::shell(
-            12,
-            8,
-            [hex("#56d364"), hex("#ffb020"), hex("#ff4b3e")],
-            [hex("#1d2a1f"), hex("#352a15"), hex("#361b17")],
-        );
+        let c = LedColors::shell(12, 8, LIT, UNLIT);
         let mut img = Image::new(300, 300);
         let mut sf = img.surface();
         sf.clear(0x101010);
@@ -596,7 +575,7 @@ mod tests {
     }
 
     #[test]
-    fn marks_are_written_inside_their_bulbs_and_nowhere_else() {
+    fn marks_are_inside_their_bulbs_all_one_size() {
         let r = Rect::new(0, 0, 300, 300);
         let (Some(plain), Some(marked)) = (through_pen(None, r), through_pen(Some(&db_marks(&TH, 5)), r))
         else {
@@ -607,24 +586,26 @@ mod tests {
             let d = p.dots[k];
             (x as f32 + 0.5 - d.x).hypot(y as f32 + 0.5 - d.y) <= d.r
         };
-        let mut changed = [0usize; 12];
+        // Per bulb, the rows its text covers.
+        let mut rows: [(usize, usize); 12] = [(usize::MAX, 0); 12];
         for y in 0..300 {
             for x in 0..300 {
                 if plain.px[y * 300 + x] != marked.px[y * 300 + x] {
-                    let owner = (0..12).find(|&k| inside(x, y, k));
-                    let k = owner.unwrap_or_else(|| panic!("text outside a bulb at ({x}, {y})"));
+                    let k = (0..12)
+                        .find(|&k| inside(x, y, k))
+                        .unwrap_or_else(|| panic!("text outside a bulb at ({x}, {y})"));
                     assert!(k >= 7, "LED {k} has no mark");
-                    changed[k] += 1;
+                    rows[k] = (rows[k].0.min(y), rows[k].1.max(y));
                 }
             }
         }
-        for (k, n) in changed.iter().enumerate() {
-            assert_eq!(*n > 0, k >= 7, "LED {k}: {n} pixels of text");
-        }
+        let heights: Vec<usize> = (7..12).map(|k| rows[k].1 + 1 - rows[k].0).collect();
+        assert!(rows[..7].iter().all(|r| r.0 == usize::MAX), "an unmarked LED has text");
+        assert!(heights.iter().all(|&h| h > 1 && h == heights[0]), "one size, got heights {heights:?}");
     }
 
     #[test]
-    fn a_bulb_too_small_for_the_smallest_font_is_left_blank() {
+    fn a_bulb_too_small_for_the_smallest_font_leaves_all_the_marks_out() {
         let r = Rect::new(0, 0, 40, 40);
         let (Some(plain), Some(marked)) = (through_pen(None, r), through_pen(Some(&db_marks(&TH, 5)), r))
         else {

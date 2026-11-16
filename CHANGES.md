@@ -6,23 +6,27 @@ the git log.
 
 ## 2026-11-16
 
-- `lp-paint`: the shell meter (Warren, for capstan's client). `Shell::new(&ShellShape)` is its
-  geometry, no pixels: round LEDs wound in along a logarithmic spiral to a red eye at the
-  centre, each tangent to the next, the last tangent to the eye, which is far bigger than any
-  of them (the defaults: twelve LEDs, growing 2.6 times, the eye 1.2 times the last). `led_shell`
-  (and `Pen::shell`) draws it from a `ShellLevel` { `lit`, `peak`, `clip` }: `lit` counts the
-  LEDs lit with the eye the last, and its fraction lights the leading LED by that much, so a
-  dozen move smoothly; `lit_at(thresholds, db)` makes it from a level and the dBFS each LED
-  lights at, which the tool names. The eye is a ring when out and fills red when lit, with a
-  rim while a clip is latched, whatever the level; `Shell::place` says where it
-  fell, for a click that clears the latch. Flat: no glow, no highlight. `LedColors::shell` and
-  `Skin::shell_leds(dots, amber_from)` give the colours, one more than the LEDs, the eye's red
-  last. The ballistics, the hold and the latch are the tool's, as for the ladder and the disc.
-  `db_marks(thresholds, count)` and `Pen::shell_marked` write the dBFS in the last `count` LEDs
-  before the eye (the critical ones; five on the sheet), bold in the largest Terminus that fits
-  the bulb, dark on a lit LED and dim on an unlit one, so the number is there before the level
-  reaches it; a bulb too small for the smallest font is left blank. Drawn on the parts sheet;
-  none of it has been on a real screen. **A tool:** nothing.
+- `lp-paint`: the shell meter (Warren, for capstan's client). Round LEDs on the golden spiral,
+  each a fixed step bigger than the one before and touching it, small and green at the coil,
+  the last, the red eye, the biggest: the Fibonacci circles. `Shell::new(&ShellShape)` is the
+  geometry, no pixels and closed-form: on the spiral `r = e^(b·θ)` (`GOLDEN_B`, the default), LED
+  `i` sits a step of the growth along it, with a radius in proportion to the spiral's there,
+  and the proportion is what makes neighbours touch (less `gap`). The defaults are twelve LEDs
+  and the eye, growing six times. A shape wants `ln(growth) / dots / b` under about 0.8 of a
+  radian or its coils overlap (tested over shapes that keep to it). `led_shell` (and `Pen::shell`)
+  draws it from a `ShellLevel` { `lit`, `peak`, `clip` }: `lit` counts the LEDs lit with the eye
+  the last, and its fraction lights the leading LED by that much, so a dozen move smoothly;
+  `lit_at(thresholds, db)` makes it from a level and the dBFS each LED lights at, which the tool
+  names. The eye is an LED like the others, flat, no glow, no highlight; a latched clip holds it
+  lit with a rim, whatever the level, and `Shell::place` says where it fell, for a click that
+  clears the latch. `db_marks(thresholds, count)` and `Pen::shell_marked` write the dBFS in the
+  last `count` LEDs before the eye (five on the sheet), bold, all one size, the largest Terminus
+  that fits the smallest of those bulbs, dark on a lit LED and dim on an unlit one, so the
+  number is there before the level reaches it; if even the smallest font doesn't fit that bulb,
+  none is drawn. `LedColors::shell` and `Skin::shell_leds(dots, amber_from)` give the colours,
+  one more than the LEDs, the eye's red last. The ballistics, the hold and the latch are the
+  tool's, as for the ladder and the disc. Drawn on the parts sheet; none of it has been on a
+  real screen. **A tool:** nothing.
 
 ## 2026-11-13
 
