@@ -11,8 +11,8 @@
 use lp_keys::common::{Declared, KEYS};
 use lp_paint::{
     Align, Cell, Column, Dial, Disc, Field, FieldState, Fonts, Hits, Image, KeyLook, List, ListLook, Marker,
-    Pen, Rect, Scale, Shell, ShellLevel, ShellShape, Skin, Surface, View, Wave, knob_pos, lit_at, set_skin,
-    skin, write_png,
+    Pen, Rect, Scale, Shell, ShellLevel, ShellShape, Skin, Surface, View, Wave, db_marks, knob_pos, lit_at,
+    set_skin, skin, write_png,
 };
 use lp_panel::bar::{Bar, Opt};
 use lp_panel::keys::keys_over;
@@ -240,13 +240,14 @@ pub fn draw(sf: &mut Surface, fonts: &Fonts, keys: bool) -> Result<(), String> {
     let shell = Shell::new(&ShellShape::default());
     let th = [-48.0, -42.0, -36.0, -30.0, -24.0, -18.0, -12.0, -9.0, -6.0, -4.0, -2.0, -1.0, 0.0];
     let led = skin().shell_leds(shell.len(), 8);
+    let marks = db_marks(&th, 5);
     let at = |db: f32| ShellLevel { lit: lit_at(&th, db), ..ShellLevel::default() };
     let hot = ShellLevel { peak: 10, ..at(-7.5) };
     let clip = ShellLevel { clip: true, ..at(-14.0) };
     hits.section("");
-    pen.shell(Rect::new(14, 880, 212, 212), &shell, &at(-30.0), &led);
-    pen.shell(Rect::new(14, 1100, 212, 212), &shell, &clip, &led);
-    pen.shell(Rect::new(1174, 880, 212, 212), &shell, &hot, &led);
+    pen.shell_marked(Rect::new(14, 880, 212, 212), &shell, &at(-30.0), &led, &marks);
+    pen.shell_marked(Rect::new(14, 1100, 212, 212), &shell, &clip, &led, &marks);
+    pen.shell_marked(Rect::new(1174, 880, 212, 212), &shell, &hot, &led, &marks);
     for (i, lv) in [at(-52.0), at(-15.0), hot].iter().enumerate() {
         pen.shell(Rect::new(1174 + 72 * i as i32, 1100, 68, 68), &shell, lv, &led);
     }

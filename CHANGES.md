@@ -9,7 +9,7 @@ the git log.
 - `lp-paint`: the shell meter (Warren, for capstan's client). `Shell::new(&ShellShape)` is its
   geometry, no pixels: round LEDs wound in along a logarithmic spiral to a red eye at the
   centre, each tangent to the next, the last tangent to the eye, which is far bigger than any
-  of them (the defaults: twelve LEDs, growing 2.6 times, the eye 1.6 times the last). `led_shell`
+  of them (the defaults: twelve LEDs, growing 2.6 times, the eye 1.2 times the last). `led_shell`
   (and `Pen::shell`) draws it from a `ShellLevel` { `lit`, `peak`, `clip` }: `lit` counts the
   LEDs lit with the eye the last, and its fraction lights the leading LED by that much, so a
   dozen move smoothly; `lit_at(thresholds, db)` makes it from a level and the dBFS each LED
@@ -18,7 +18,11 @@ the git log.
   fell, for a click that clears the latch. Flat: no glow, no highlight. `LedColors::shell` and
   `Skin::shell_leds(dots, amber_from)` give the colours, one more than the LEDs, the eye's red
   last. The ballistics, the hold and the latch are the tool's, as for the ladder and the disc.
-  Drawn on the parts sheet; none of it has been on a real screen. **A tool:** nothing.
+  `db_marks(thresholds, count)` and `Pen::shell_marked` write the dBFS in the last `count` LEDs
+  before the eye (the critical ones; five on the sheet), bold in the largest Terminus that fits
+  the bulb, dark on a lit LED and dim on an unlit one, so the number is there before the level
+  reaches it; a bulb too small for the smallest font is left blank. Drawn on the parts sheet;
+  none of it has been on a real screen. **A tool:** nothing.
 
 ## 2026-11-13
 

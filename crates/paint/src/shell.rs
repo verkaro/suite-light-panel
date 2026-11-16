@@ -18,10 +18,10 @@
 //! [`Shell::new`] is geometry only, no pixels, and is made once per layout. [`led_shell`] draws.
 //! In a skin's colours: [`crate::Skin::shell_leds`].
 
-use crate::{LedColors, Pen, Rect, Rgb, Surface, mix};
+use crate::{LedColors, Pen, Rect, Rgb, Surface, mix, skin};
 
 /// How a shell is wound. The defaults are what Warren settled on by eye (2026-11-16): twelve
-/// LEDs growing 2.6 times, the eye 1.6 times the last of them (it was 2.4, cut by a third), a crook
+/// LEDs growing 2.6 times, the eye 1.2 times the last of them (it was 2.4, then 1.6: cut again), a crook
 /// round half a turn.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ShellShape {
@@ -47,7 +47,7 @@ impl Default for ShellShape {
         ShellShape {
             dots: 12,
             growth: 2.6,
-            last_over_eye: 0.63,
+            last_over_eye: 0.85,
             b: 0.16,
             gap: 0.10,
             start: -0.4,
@@ -226,11 +226,81 @@ pub fn led_shell(s: &mut Surface, r: Rect, shell: &Shell, level: &ShellLevel, c:
     }
 }
 
+/// What to write in the LEDs at the critical end: the dBFS of the last `count` LEDs before the
+/// eye, as text, and nothing in the rest nor in the eye. One entry a threshold, for
+/// [`Pen::shell_marked`]. `-9`, `-4.5`: whole numbers bare.
+pub fn db_marks(thresholds: &[f32], count: usize) -> Vec<String> {
+    let n = thresholds.len();
+    (0..n)
+        .map(|k| {
+            if k + 1 < n && k + 1 + count >= n {
+                let db = thresholds[k];
+                if db.fract() == 0.0 { format!("{}", db as i32) } else { format!("{db:.1}") }
+            } else {
+                String::new()
+            }
+        })
+        .collect()
+}
+
 impl Pen<'_, '_> {
     /// A shell in `r`, logical: [`led_shell`] through the pen's view.
     pub fn shell(&mut self, r: Rect, shell: &Shell, level: &ShellLevel, c: &LedColors) {
         let r = self.v.rect(r);
         led_shell(self.sf, r, shell, level, c);
+    }
+
+    /// A shell with text inside some of its LEDs (`marks`, one an LED, empty for none: see
+    /// [`db_marks`]). Drawn bold in the largest Terminus that fits the bulb, dark on a lit LED and
+    /// dim on an unlit one, so the number is there whether or not the level has reached it. A
+    /// bulb too small for the smallest font is left blank, not crowded.
+    pub fn shell_marked(
+        &mut self,
+        r: Rect,
+        shell: &Shell,
+        level: &ShellLevel,
+        c: &LedColors,
+        marks: &[String],
+    ) {
+        let r = self.v.rect(r);
+        led_shell(self.sf, r, shell, level, c);
+        let n = shell.len();
+        if c.lit.len() <= n {
+            return;
+        }
+        let lit = if level.lit.is_finite() { level.lit.clamp(0.0, (n + 1) as f32) } else { 0.0 };
+        let placed = shell.place(r);
+        for (k, (d, text)) in placed.dots.iter().zip(marks).enumerate() {
+            if text.is_empty() {
+                continue;
+            }
+            let held = level.peak > 0 && k == level.peak - 1;
+            let on = held || lit - k as f32 >= 0.5;
+            let colour = if on { skin().bg } else { skin().dim };
+            // The largest font whose text sits inside the bulb's width (0.78 of it) and is
+            // not taller than a bulb's radius and a bit.
+            let mut px = d.r * 1.1;
+            let found = loop {
+                let (f, s) = self.fonts.pick(px, true);
+                if (f.height * s) as f32 <= d.r * 1.1 + 0.5 && f.measure(text, s) as f32 <= d.r * 1.56 {
+                    break Some((f, s));
+                }
+                if px < 12.0 {
+                    break None;
+                }
+                px -= 1.0;
+            };
+            let Some((f, s)) = found else { continue };
+            let (w, h) = (f.measure(text, s), (f.height * s) as i32);
+            f.draw(
+                self.sf,
+                (d.x - w as f32 / 2.0).round() as i32,
+                (d.y - h as f32 / 2.0).round() as i32,
+                text,
+                colour,
+                s,
+            );
+        }
     }
 }
 
@@ -487,5 +557,79 @@ mod tests {
         assert_eq!(c.lit[11], 2);
         assert_eq!(c.lit[12], 3);
         assert_eq!(c.unlit[12], 6);
+    }
+
+    #[test]
+    fn the_critical_leds_are_marked_with_their_db_and_the_eye_is_not() {
+        let m = db_marks(&TH, 5);
+        assert_eq!(m.len(), 13);
+        let said: Vec<(usize, &str)> =
+            m.iter().enumerate().filter(|(_, s)| !s.is_empty()).map(|(k, s)| (k, s.as_str())).collect();
+        assert_eq!(said, [(7, "-9"), (8, "-6"), (9, "-4"), (10, "-2"), (11, "-1")]);
+        assert!(db_marks(&TH, 0).iter().all(|s| s.is_empty()));
+        assert_eq!(db_marks(&TH, 99).iter().filter(|s| !s.is_empty()).count(), 12);
+        assert_eq!(db_marks(&TH, 99)[12], "");
+        assert_eq!(db_marks(&[-6.0, -4.5, 0.0], 1)[1], "-4.5");
+        assert!(db_marks(&[], 5).is_empty());
+    }
+
+    // The shell drawn through a pen, with marks or without, on a 300 × 300 image.
+    fn through_pen(marks: Option<&[String]>, r: Rect) -> Option<Image> {
+        let fonts = crate::Fonts::terminus(None).ok()?;
+        let s = Shell::new(&ShellShape::default());
+        let c = LedColors::shell(
+            12,
+            8,
+            [hex("#56d364"), hex("#ffb020"), hex("#ff4b3e")],
+            [hex("#1d2a1f"), hex("#352a15"), hex("#361b17")],
+        );
+        let mut img = Image::new(300, 300);
+        let mut sf = img.surface();
+        sf.clear(0x101010);
+        let mut pen = Pen { sf: &mut sf, fonts: &fonts, v: crate::View::fit(300, 300, 300, 300) };
+        let level = ShellLevel { lit: 11.0, ..ShellLevel::default() };
+        match marks {
+            Some(m) => pen.shell_marked(r, &s, &level, &c, m),
+            None => pen.shell(r, &s, &level, &c),
+        }
+        Some(img)
+    }
+
+    #[test]
+    fn marks_are_written_inside_their_bulbs_and_nowhere_else() {
+        let r = Rect::new(0, 0, 300, 300);
+        let (Some(plain), Some(marked)) = (through_pen(None, r), through_pen(Some(&db_marks(&TH, 5)), r))
+        else {
+            return; // no Terminus here
+        };
+        let p = Shell::new(&ShellShape::default()).place(r);
+        let inside = |x: usize, y: usize, k: usize| {
+            let d = p.dots[k];
+            (x as f32 + 0.5 - d.x).hypot(y as f32 + 0.5 - d.y) <= d.r
+        };
+        let mut changed = [0usize; 12];
+        for y in 0..300 {
+            for x in 0..300 {
+                if plain.px[y * 300 + x] != marked.px[y * 300 + x] {
+                    let owner = (0..12).find(|&k| inside(x, y, k));
+                    let k = owner.unwrap_or_else(|| panic!("text outside a bulb at ({x}, {y})"));
+                    assert!(k >= 7, "LED {k} has no mark");
+                    changed[k] += 1;
+                }
+            }
+        }
+        for (k, n) in changed.iter().enumerate() {
+            assert_eq!(*n > 0, k >= 7, "LED {k}: {n} pixels of text");
+        }
+    }
+
+    #[test]
+    fn a_bulb_too_small_for_the_smallest_font_is_left_blank() {
+        let r = Rect::new(0, 0, 40, 40);
+        let (Some(plain), Some(marked)) = (through_pen(None, r), through_pen(Some(&db_marks(&TH, 5)), r))
+        else {
+            return;
+        };
+        assert_eq!(plain.px, marked.px);
     }
 }
