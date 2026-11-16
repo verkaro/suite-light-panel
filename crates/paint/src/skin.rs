@@ -187,6 +187,12 @@ impl Skin {
         LedColors::bands(n, self.lit, self.unlit)
     }
 
+    /// `dots` shell LEDs and the eye, in this skin's bands: green to LED `amber_from`, then amber,
+    /// the eye red ([`LedColors::shell`]).
+    pub fn shell_leds(&self, dots: usize, amber_from: usize) -> LedColors {
+        LedColors::shell(dots, amber_from, self.lit, self.unlit)
+    }
+
     /// Every solid colour by the page's name for it.
     pub fn named_colours(&self) -> [(&'static str, Rgb); 24] {
         [

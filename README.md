@@ -42,7 +42,13 @@ lp-kms = { git = "https://github.com/verkaro/suite-light-panel", rev = "COMMIT" 
   - `ladder`: the LED ladder, bottom up, green, amber, red (Dexter's deck);
   - `disc_led`: one LED a track, white brighter as it's louder, then yellow, then red, held with
     the peak, ringed when armed, recording or clipped (Dexter's remote). For a small screen, or
-    many tracks: 64 fit on 800 × 480.
+    many tracks: 64 fit on 800 × 480;
+  - `led_shell` (`Pen::shell`): about a dozen round LEDs winding in along a spiral to a red eye
+    at its centre, small and green outside, larger and amber as they close in, the eye bigger
+    than any of them. Read across a room: the red is the biggest thing on the face, and a quiet
+    track is a faint tail and a ring. Each LED is a dBFS threshold the tool names (`lit_at`
+    turns a level into a lit count, the leading LED lit by its fraction); the eye holds a
+    latched clip with a rim. `Shell::new(&ShellShape)` is its geometry.
 
   And the parts a panel is made of, in the dark skin: a key (`Pen::key`), a form's field
   (`Pen::field`), a list (`List`), a waveform, straight or in dB (`Pen::wave`), a dial with a
