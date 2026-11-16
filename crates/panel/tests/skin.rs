@@ -47,3 +47,35 @@ fn no_part_draws_dark_in_seventies() {
     // And 70s's key colours are used: what's on a key is drawn as on a key.
     assert!(seventies.contains(&s.key.unwrap().text), "key text");
 }
+
+/// The sheet in `s`, as pixels.
+fn pixels(s: &'static Skin) -> Vec<u32> {
+    set_skin(s);
+    let fonts = Fonts::terminus(None).expect("the Terminus fonts (console-setup-linux)");
+    let mut img = Image::new(1400, 1340);
+    let mut sf = img.surface();
+    parts::draw(&mut sf, &fonts, false).unwrap();
+    img.px
+}
+
+/// The studio's two desks differ in their desk and in nothing a track is drawn on: a shell
+/// meter's card, its LEDs and its numbers are the same pixels on a light desk as on a dark one.
+#[test]
+fn a_meter_is_the_same_on_both_studio_desks() {
+    let (dark, light) = (pixels(&Skin::STUDIO_DARK), pixels(&Skin::STUDIO_LIGHT));
+    set_skin(&Skin::DARK);
+    // The cards the sheet draws (`parts.rs`): inside each, the hairline and the corners left.
+    let cards = [(14, 876, 212, 212), (14, 1096, 212, 212), (1174, 876, 212, 212)];
+    for (x, y, w, h) in cards {
+        for py in y + 12..y + h - 12 {
+            for px in x + 12..x + w - 12 {
+                assert_eq!(dark[py * 1400 + px], light[py * 1400 + px], "({px}, {py}) inside a card");
+            }
+        }
+    }
+    // And the desks themselves are not the same picture: the page, the groups, the text.
+    let differing = dark.iter().zip(&light).filter(|(a, b)| a != b).count();
+    assert!(differing > 400_000, "only {differing} pixels differ between the desks");
+    // The light desk is light: its ground, where the sheet draws on it.
+    assert_eq!(light[5 * 1400 + 700], Skin::STUDIO_LIGHT.bg);
+}

@@ -53,6 +53,11 @@ lp-kms = { git = "https://github.com/verkaro/suite-light-panel", rev = "COMMIT" 
     `Skin::tier`): the page while a track plays back, lifted a little when armed and more while
     it records, the same warm hue and never an alarm colour.
 
+  And the palettes: `Palette`, sixteen colours by role made in OKLCH and held to contrast
+  targets, six that change with the desk and ten that never do, so a dark desk and a light one
+  differ only in their neutrals and a meter looks the same on both (`Skin::STUDIO_DARK`,
+  `STUDIO_LIGHT`; the example `palette` prints them).
+
   And the parts a panel is made of, in the dark skin: a key (`Pen::key`), a form's field
   (`Pen::field`), a list (`List`), a waveform, straight or in dB (`Pen::wave`), a dial with a
   ring lit by its signal in the disc's colours (`Pen::dial`, with `knob_pos` for its law), and

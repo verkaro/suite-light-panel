@@ -31,7 +31,7 @@ impl Pen<'_, '_> {
     /// A track's card: its [`Tier`]'s surface, rounded, with a hairline a little lighter than it.
     /// Draw what's on it after, on `skin().tier(tier)`.
     pub fn card(&mut self, r: Rect, tier: crate::Tier) {
-        let (fill, text) = (skin().tier(tier), skin().text);
+        let (fill, text) = (skin().tier(tier), skin().window_text);
         let edge = mix(fill, text, if tier == crate::Tier::Playback { 0.07 } else { 0.14 });
         self.rrect(r, 10.0, fill, edge);
     }

@@ -6,6 +6,29 @@ the git log.
 
 ## 2026-11-16
 
+- `lp-paint`: palettes (Warren, for family continuity). `Palette` is sixteen colours by role: six
+  neutrals that change with the desk (`ground`, `raised`, `edge`, `faint`, `dim`, `text`) and ten
+  that never do (the meter `well`; the signals `green`, `amber`, `red`; the families `orange`,
+  `lilac`, `sky`, `peri`, `sand`; and `focus`), with `OnDesk`, the nine of those drawn thin on the
+  desk (an outline, a number) at the same hue and chroma and a lightness solved to 7:1 against
+  the desk's ground, so they stay legible on a light desk where the pastel would not. Made in
+  OKLCH by `Palette::generate`, the recipe; `Palette::STUDIO_DARK` and `STUDIO_LIGHT` are what it
+  makes, written out, held to the recipe by a test; `cargo run -p lp-paint --example palette`
+  prints them again. A light desk is the dark one's six neutrals mirrored: its ten are the same
+  to the bit, so a meter looks the same on both. Held by tests to a contrast ladder (text
+  14:1, dim 6.5, faint 3, edge 1.8), hue kept, warm neutrals, and the signals told apart by
+  lightness as well as hue: amber, green, red, at least 1.3:1 between each (found at 1.2 and
+  widened). `oklch`, `to_oklch`, `solve` and `lean` (`mix` in whole numbers, so a skin can be a
+  constant) are public.
+- `lp-paint`: `Skin::STUDIO_DARK` (`studio`) and `Skin::STUDIO_LIGHT` (`studio-light`), made by
+  `Skin::from_palette`; `Skin::STUDIO` lists them. `Skin::named` finds them; `Skin::next` goes
+  round the family a skin is in (the page's two, or the studio's two). `Skin::ALL` is still the
+  page's, held to `page-kit.js`; the studio's have no counterpart there. `Skin` has three new
+  fields, `window`, `window_text`, `window_dim`: a track's card and what is written on it
+  (`Tier`, `Pen::card`, a shell's numbers). On the page's skins they are `bg`, `text` and `dim`,
+  so nothing there changes; on a studio desk they are the dark desk's own whichever desk it
+  is. **A tool that builds a `Skin` literal:** add them. Otherwise nothing.
+
 - `lp-paint`: the shell meter (Warren, for capstan's client). Round LEDs on the golden spiral,
   each a fixed step bigger than the one before and touching it, small and green at the coil,
   the last, the red eye, the biggest: the Fibonacci circles. `Shell::new(&ShellShape)` is the

@@ -11,14 +11,15 @@
 //! [`Skin::on_key`], as the page's `onKey` does. Dark has no key colours: there it changes
 //! nothing.
 
-use crate::{LedColors, Rgb, dark, hex, mix};
+use crate::{LedColors, Palette, Rgb, dark, hex, lean, mix};
 use std::cell::Cell;
 
 /// What a track is doing, as the surface it's drawn on says it (Warren, 2026-11-16): the page
 /// itself while it plays back, lifted a little once it's armed, lifted more while it records.
 /// Never a colour of alarm: the same warm hue with more contrast, so the state reads across a
 /// room without a room that's all red. A track left out of a recording is the dark one among
-/// lifted ones.
+/// lifted ones. A track's card is the skin's meter window, so on a studio desk it's the same dark
+/// or light.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Tier {
     Playback,
@@ -83,6 +84,12 @@ pub struct Skin {
     pub tape: Rgb,
     pub overlay: Rgb,
     pub menu: Rgb,
+    /// A meter window: what a track's card is made of ([`Skin::tier`]), and the text and dim
+    /// text drawn in it. The same as `bg`, `text` and `dim` on the dark skins; on a studio desk
+    /// they are the dark desk's own whichever desk it is, so a meter looks the same on both.
+    pub window: Rgb,
+    pub window_text: Rgb,
+    pub window_dim: Rgb,
     /// The meters' green, amber and red, lit and unlit.
     pub lit: [Rgb; 3],
     pub unlit: [Rgb; 3],
@@ -119,6 +126,9 @@ impl Skin {
         tape: dark::TAPE,
         overlay: dark::OVERLAY,
         menu: dark::MENU,
+        window: dark::BG,
+        window_text: dark::TEXT,
+        window_dim: dark::DIM,
         lit: [hex("#56d364"), hex("#ffb020"), hex("#ff4b3e")],
         unlit: [hex("#1d2a1f"), hex("#352a15"), hex("#361b17")],
         key: None,
@@ -153,6 +163,9 @@ impl Skin {
         tape: hex("#5ff2d0"),
         overlay: hex("#3d3b27"),
         menu: hex("#4d4a30"),
+        window: hex("#38352a"),
+        window_text: hex("#eedcae"),
+        window_dim: hex("#cbba8f"),
         lit: [hex("#a6f06a"), hex("#ffb347"), hex("#ff5a3d")],
         unlit: [hex("#545937"), hex("#6b5b39"), hex("#6b4635")],
         key: Some(KeyColors {
@@ -165,18 +178,81 @@ impl Skin {
         }),
     };
 
+    /// A skin made from a palette: the desk's neutrals as the page's colours, the signals as
+    /// the meters', the families on the desk where it draws them thin ([`crate::OnDesk`]).
+    /// `window_text` and `window_dim` are what's written in a meter window, whichever desk.
+    pub const fn from_palette(p: &Palette, title: &'static str, window_text: Rgb, window_dim: Rgb) -> Skin {
+        Skin {
+            name: p.name,
+            title,
+            page: if p.dark { p.well } else { lean(p.ground, p.edge, 350) },
+            bg: p.ground,
+            panel: p.raised,
+            column: p.raised,
+            rule: p.edge,
+            btn: lean(p.raised, p.text, 70),
+            btn_hi: lean(p.raised, p.text, 130),
+            btn_edge: p.edge,
+            text: p.text,
+            dim: p.dim,
+            faint: p.faint,
+            green: p.on.green,
+            amber: p.on.amber,
+            red: p.on.red,
+            lamp_off: p.edge,
+            well: p.well,
+            readout: p.amber,
+            ghost: lean(p.well, p.amber, 140),
+            on_red: p.well,
+            arm_text: p.on.orange,
+            arm_idle: p.dim,
+            tape: p.on.sky,
+            overlay: p.well,
+            menu: lean(p.raised, p.text, 40),
+            window: p.well,
+            window_text,
+            window_dim,
+            lit: [p.green, p.amber, p.red],
+            unlit: [lean(p.well, p.green, 170), lean(p.well, p.amber, 170), lean(p.well, p.red, 170)],
+            key: None,
+        }
+    }
+
+    /// The studio's dark desk: warm black, cream text, pastel families.
+    pub const STUDIO_DARK: Skin = Skin::from_palette(
+        &Palette::STUDIO_DARK,
+        "STUDIO",
+        Palette::STUDIO_DARK.text,
+        Palette::STUDIO_DARK.dim,
+    );
+
+    /// The studio's light desk: warm paper, dark text; the same meters.
+    pub const STUDIO_LIGHT: Skin = Skin::from_palette(
+        &Palette::STUDIO_LIGHT,
+        "STUDIO LIGHT",
+        Palette::STUDIO_DARK.text,
+        Palette::STUDIO_DARK.dim,
+    );
+
     /// The skins on the console, in the page's order.
     pub const ALL: [&'static Skin; 2] = [&Skin::DARK, &Skin::SEVENTIES];
 
-    /// A skin by the page's name for it.
+    /// The studio palette's two desks ([`Palette::STUDIO_DARK`], [`Palette::STUDIO_LIGHT`]): dark
+    /// first. Not the page's: `page-kit.js` has no counterpart for them.
+    pub const STUDIO: [&'static Skin; 2] = [&Skin::STUDIO_DARK, &Skin::STUDIO_LIGHT];
+
+    /// A skin by name: the page's, then the studio's.
     pub fn named(name: &str) -> Option<&'static Skin> {
-        Skin::ALL.into_iter().find(|s| s.name == name)
+        Skin::ALL.into_iter().chain(Skin::STUDIO).find(|s| s.name == name)
     }
 
-    /// The skin after this one, for a button that goes round them.
+    /// The skin after this one, for a button that goes round them: the next of its own family
+    /// (the page's two, or the studio's two desks).
     pub fn next(&self) -> &'static Skin {
-        let at = Skin::ALL.iter().position(|s| s.name == self.name).unwrap_or(0);
-        Skin::ALL[(at + 1) % Skin::ALL.len()]
+        let family: &[&'static Skin] =
+            if Skin::STUDIO.iter().any(|s| s.name == self.name) { &Skin::STUDIO } else { &Skin::ALL };
+        let at = family.iter().position(|s| s.name == self.name).unwrap_or(0);
+        family[(at + 1) % family.len()]
     }
 
     /// The skin muntin's console is in, as it tells a panel: `MUNTIN_SKIN`, by the page's
@@ -212,10 +288,10 @@ impl Skin {
         LedColors::bands(n, self.lit, self.unlit)
     }
 
-    /// The surface of a [`Tier`]: the page's `bg` lifted towards `text`, so it stays the skin's
-    /// own warm colour and only gains contrast.
+    /// The surface of a [`Tier`]: the skin's meter `window` lifted towards the window's text, so
+    /// it stays the skin's own warm colour and only gains contrast.
     pub fn tier(&self, t: Tier) -> Rgb {
-        mix(self.bg, self.text, t.lift())
+        mix(self.window, self.window_text, t.lift())
     }
 
     /// `dots` shell LEDs and the eye, in this skin's bands (green to LED `amber_from`, then amber,
@@ -376,9 +452,14 @@ mod tests {
     #[test]
     fn by_name_round_and_on_keys() {
         assert_eq!(Skin::named("seventies"), Some(&Skin::SEVENTIES));
-        assert_eq!(Skin::named("studio"), None);
+        assert_eq!(Skin::named("nonesuch"), None);
         assert_eq!(Skin::DARK.next(), &Skin::SEVENTIES);
         assert_eq!(Skin::SEVENTIES.next(), &Skin::DARK);
+        // The studio's desks are their own family: a button goes round the two.
+        assert_eq!(Skin::named("studio"), Some(&Skin::STUDIO_DARK));
+        assert_eq!(Skin::named("studio-light"), Some(&Skin::STUDIO_LIGHT));
+        assert_eq!(Skin::STUDIO_DARK.next(), &Skin::STUDIO_LIGHT);
+        assert_eq!(Skin::STUDIO_LIGHT.next(), &Skin::STUDIO_DARK);
         let s = &Skin::SEVENTIES;
         assert_eq!(s.on_key(s.text), hex("#231f14"));
         assert_eq!(s.on_key(s.green), hex("#3f7d1f"));
@@ -419,25 +500,30 @@ mod tests {
         contrast(c, 0)
     }
 
+    /// The page's skins and the studio's: every one a tool can be in.
+    fn every() -> impl Iterator<Item = &'static Skin> {
+        Skin::ALL.into_iter().chain(Skin::STUDIO)
+    }
+
     #[test]
-    fn a_tracks_surface_is_the_page_lifted_and_every_part_stays_readable_on_it() {
+    fn a_tracks_surface_is_the_window_lifted_and_every_part_stays_readable_on_it() {
         let mut unlit_seen = Vec::new();
-        for k in Skin::ALL {
+        for k in every() {
             let tiers: Vec<Rgb> = Tier::ALL.iter().map(|&t| k.tier(t)).collect();
-            assert_eq!(tiers[0], k.bg, "{}: playing back is the page", k.name);
+            assert_eq!(tiers[0], k.window, "{}: playing back is the window itself", k.name);
             assert!(lum(tiers[0]) < lum(tiers[1]) && lum(tiers[1]) < lum(tiers[2]), "{}: each lifts", k.name);
             // The same hue: every channel stays between the page's and the text's, so it can
             // only have gained contrast, never turned a colour.
             for &c in &tiers {
                 for s in [16, 8, 0] {
-                    let (a, b, x) = ((k.bg >> s) & 0xff, (k.text >> s) & 0xff, (c >> s) & 0xff);
+                    let (a, b, x) = ((k.window >> s) & 0xff, (k.window_text >> s) & 0xff, (c >> s) & 0xff);
                     assert!(x >= a.min(b) && x <= a.max(b), "{}: {c:06x}", k.name);
                 }
             }
             let mut unlit = Vec::new();
             for &g in &tiers {
-                assert!(contrast(k.text, g) >= 6.5, "{}: a name on {g:06x}", k.name);
-                assert!(contrast(k.dim, g) >= 4.5, "{}: a number on {g:06x}", k.name);
+                assert!(contrast(k.window_text, g) >= 6.5, "{}: a name on {g:06x}", k.name);
+                assert!(contrast(k.window_dim, g) >= 4.5, "{}: a number on {g:06x}", k.name);
                 let leds = k.shell_leds(12, 8, g);
                 for (i, (lit, off)) in leds.lit.iter().zip(&leds.unlit).enumerate() {
                     // The tightest is 70s's red on its recording tier, 2.9: a change that makes
@@ -454,13 +540,13 @@ mod tests {
             }
             unlit_seen.extend(unlit);
         }
-        assert!(unlit_seen.len() == 2 * 3 * 13);
+        assert!(unlit_seen.len() == 4 * 3 * 13);
     }
 
     #[test]
     fn the_scale_shows_as_well_on_every_tier() {
         // Held by what the LED is on: its contrast with it moves little from tier to tier.
-        for k in Skin::ALL {
+        for k in every() {
             for band in 0..3 {
                 let c: Vec<f32> = Tier::ALL
                     .iter()

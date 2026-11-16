@@ -4,7 +4,8 @@
 //! cargo run -p lp-panel --example parts -- /tmp/parts.png [1920x1080] [seventies]
 //! ```
 //!
-//! The last names the skin (`dark` by default). `tests/skin.rs` draws the same in 70s.
+//! The last names the skin (`dark` by default; also `seventies`, `studio`, `studio-light`).
+//! `tests/skin.rs` draws the same in 70s and on both studio desks.
 //!
 //! A picture proves the drawing, not a screen.
 
@@ -26,7 +27,7 @@ fn main() -> Result<(), String> {
     let (w, h) = size.split_once('x').ok_or("the size is WxH")?;
     let (w, h): (usize, usize) = (w.parse().map_err(|_| "W")?, h.parse().map_err(|_| "H")?);
     if let Some(name) = args.next() {
-        set_skin(Skin::named(&name).ok_or("the skin is dark or seventies")?);
+        set_skin(Skin::named(&name).ok_or("the skin is dark, seventies, studio or studio-light")?);
     }
     let fonts = Fonts::terminus(None).map_err(|e| e.to_string())?;
     let mut img = Image::new(w, h);

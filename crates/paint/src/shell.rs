@@ -265,7 +265,7 @@ impl Pen<'_, '_> {
         let Some((f, s)) = found else { return };
         for (k, d, text) in marked {
             let held = level.peak > 0 && k == level.peak - 1;
-            let colour = if held || lit - k as f32 >= 0.5 { skin().bg } else { skin().dim };
+            let colour = if held || lit - k as f32 >= 0.5 { skin().window } else { skin().window_dim };
             let (w, h) = (f.measure(text, s), (f.height * s) as i32);
             f.draw(
                 self.sf,
