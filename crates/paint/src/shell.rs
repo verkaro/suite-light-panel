@@ -12,7 +12,7 @@
 //! it's given.
 //!
 //! The eye is the last LED. Out, it's a ring only, so a wall of quiet tracks stays calm. Lit, it
-//! fills red; latched, it gets a bright rim and a glint. Its place is [`Placed::eye`], for a click
+//! fills red, flat like the rest; latched, it gets a bright rim. Its place is [`Placed::eye`], for a click
 //! that clears the latch.
 //!
 //! [`Shell::new`] is geometry only, no pixels, and is made once per layout. [`led_shell`] draws.
@@ -21,7 +21,8 @@
 use crate::{LedColors, Pen, Rect, Rgb, Surface, mix};
 
 /// How a shell is wound. The defaults are what Warren settled on by eye (2026-11-16): twelve
-/// LEDs growing 2.6 times, the eye 2.4 times the last of them, a crook round half a turn.
+/// LEDs growing 2.6 times, the eye 1.6 times the last of them (it was 2.4, cut by a third), a crook
+/// round half a turn.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ShellShape {
     /// LEDs before the eye (the eye is one more). At least 2.
@@ -46,7 +47,7 @@ impl Default for ShellShape {
         ShellShape {
             dots: 12,
             growth: 2.6,
-            last_over_eye: 0.42,
+            last_over_eye: 0.63,
             b: 0.16,
             gap: 0.10,
             start: -0.4,
@@ -220,10 +221,6 @@ pub fn led_shell(s: &mut Surface, r: Rect, shell: &Shell, level: &ShellLevel, c:
         return;
     }
     s.disc(e.x, e.y, e.r, mix(off_c, lit_c, a));
-    if a >= 0.5 {
-        // The light through a lens, as the disc LED has it.
-        s.disc(e.x - e.r * 0.33, e.y - e.r * 0.36, e.r * 0.13, mix(lit_c, 0xffffff, 0.8));
-    }
     if level.clip {
         s.ring(e.x, e.y, e.r, (e.r * 0.1).max(2.0), mix(lit_c, 0xffffff, 0.7));
     }
@@ -427,7 +424,6 @@ mod tests {
         let rim = Dot { x: p.eye.x + p.eye.r - 1.0, ..p.eye };
         assert_ne!(at(&img, &rim), 0x101010);
         let (img, p) = draw(ShellLevel { lit: 13.0, ..ShellLevel::default() });
-        // Off the glint, which sits up and to the left.
         let mid = Dot { x: p.eye.x + p.eye.r * 0.5, ..p.eye };
         assert_eq!(at(&img, &mid), hex("#ff4b3e"));
     }
