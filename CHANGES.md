@@ -11,6 +11,7 @@ the git log.
   still gets the key first, to let go of what's held (BRR does). Found when sway-try's toy, which
   never asked, couldn't be switched away from. **A tool:** nothing; a panel's own
   `vt_key`/`switch_vt` still works and now does nothing more, and may go at its next session.
+  Warren tried it with the toy, which no longer asks: it switches away, both ways.
 - `lp-wayland`, new: **a panel in a Wayland window**, for sway (Warren, 2026-11-25; the terms in
   `../NOTES.md`, "The plan holds"). `Window::open`, `poll` (the window and the fds given, up to
   a timeout), `size`, `cursor`, `ready`, `present`. Moved from `../sway-try`, where it was
