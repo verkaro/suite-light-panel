@@ -122,7 +122,9 @@ it and said "all tests successful" (2026-11-13).
 the panel's in memory exactly, and keys, repeats, the pointer, a resize and a keyboard plugged in
 pass on a headless sway (`headless.sh`). Warren tried sway-try in sway and said "it works"
 (2026-11-25), on sway-try's own loop, then again through the suite: "it works through the suite
-too". Not yet: a tool's panel in it.
+too". The first tool's panel in it is irma's (its pin at `0156b1b`): Warren tried it in sway,
+2026-11-25, and it opens, the keys work, and it looks right small and full screen
+(`../dexter-irma/MANUAL.md`, "In sway").
 
 The keys, the command bar, `?`, and a key, a field, a list and a waveform (2026-11-10) came
 with dexter-irma's panel. They're tested by what they draw into memory. Not yet: any of them on
