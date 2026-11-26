@@ -1,0 +1,15 @@
+[package]
+name = "lp-wayland"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "A panel in a Wayland window (sway): the window, its buffers, and the keys and pointer as lp-keys gives them"
+
+[dependencies]
+lp-keys.workspace = true
+lp-paint.workspace = true
+libc.workspace = true
+wayland-client.workspace = true
+wayland-protocols.workspace = true

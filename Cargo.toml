@@ -14,5 +14,9 @@ lp-keys = { path = "crates/keys" }
 lp-paint = { path = "crates/paint" }
 lp-panel = { path = "crates/panel" }
 lp-term = { path = "crates/term" }
+lp-wayland = { path = "crates/wayland" }
 libc = "0.2"
 miniz_oxide = "0.8"
+# lp-wayland's alone, and lp-panel's through its `wayland` feature (Warren, 2026-11-25).
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32", features = ["client"] }

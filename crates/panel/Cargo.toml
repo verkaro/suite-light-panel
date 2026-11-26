@@ -12,6 +12,13 @@ lp-kms.workspace = true
 lp-keys.workspace = true
 lp-paint.workspace = true
 libc.workspace = true
+lp-wayland = { workspace = true, optional = true }
+
+[features]
+# `run` in a Wayland window when started under a compositor (sway), and on the whole screen
+# otherwise (Warren, 2026-11-25). Off by default: a panel for the console alone builds without
+# the Wayland crates.
+wayland = ["dep:lp-wayland"]
 
 [dev-dependencies]
 lp-term.workspace = true

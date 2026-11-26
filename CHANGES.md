@@ -6,6 +6,16 @@ the git log.
 
 ## 2026-11-25
 
+- `lp-wayland`, new: **a panel in a Wayland window**, for sway (Warren, 2026-11-25; the terms in
+  `../NOTES.md`, "The plan holds"). `Window::open`, `poll` (the window and the fds given, up to
+  a timeout), `size`, `cursor`, `ready`, `present`. Moved from `../sway-try`, where it was
+  tried. `lp-panel`: a `wayland` feature, off by default; with it, `run` opens a window instead
+  of the screen when `WAYLAND_DISPLAY` is set and it isn't under muntin, and calls the panel the
+  same way. Typing hides the cursor there as on the console. `lp-keys`: `Held`, which keys are
+  down and the `Key` each event makes (its mods and character), now `Keyboards`' and the
+  window's alike, and `is_modifier`. Keys made from evdev are as they were. **A tool:** nothing.
+  To be a window under sway, take `lp-panel` with `features = ["wayland"]`; nothing in the
+  panel changes. Not yet tried on a real screen through the suite.
 - `lp-paint`: **a waveform to place a mark by** (`../suite-audio-libs/RFC-waveform.md`, w2).
   `Window` (`open`, `follow`): the span shown while a mark is placed, `WINDOW_STEPS` (40) of its
   nudge steps across, the mark centred when it opens, then scrolled as little as keeps it

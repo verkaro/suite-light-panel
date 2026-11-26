@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The pieces a Dexter-family tool needs to put its front panel on a whole screen, with nothing
 between it and the hardware: no X, no Wayland, no browser, no terminal. Five crates, each
-needing only `libc` and each other (plus `miniz_oxide` for PNG):
+needing only `libc` and each other (plus `miniz_oxide` for PNG), and a sixth for a window:
 
 - `lp-kms`: the screen through DRM/KMS, two dumb buffers flipped on the vertical blank, and the
   VT handed over and back by signal (`Console`).
@@ -28,6 +28,13 @@ needing only `libc` and each other (plus `miniz_oxide` for PNG):
   a test (`linux_terminfo`), since `TERM=linux` claims them; a sequence added is claimed only
   once it's tested. `width.sh` writes `width_table.rs` from glibc's charmap: run it, never edit
   the table. GPL terminals are read, never copied.
+- `lp-wayland`: a panel in a Wayland window, for sway (Warren, 2026-11-25). Two shared-memory
+  buffers and the keys and pointer as `lp-keys` gives them, by `wayland-client` alone (no
+  toolkit, no xkb). `lp-panel`'s `run` uses it behind its `wayland` feature, off by default.
+  Sway is a compatibility, on terms Warren confirmed that day (`../NOTES.md`, "The plan holds"):
+  KMS stays the first target, a panel's code is the same either way, and nothing is Wayland's
+  alone. Its test is `../sway-try`'s `headless.sh`, on a headless sway of its own; CI can't run
+  it.
 
 It follows `../suite-audio-libs`'s rules and works the same way: tools pin it by git commit and
 patch it to this folder in a `.cargo/config.toml` kept out of git. Only shared code belongs here.
@@ -39,13 +46,14 @@ commit. The family's rules are `../CLAUDE.md`.
 ```sh
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
+cargo clippy -p lp-panel --features wayland --all-targets -- -D warnings   # run's window half
 cargo test
 cargo test -p lp-paint dial        # one crate, tests whose names hold "dial"
 cargo run -p lp-panel --example parts -- out.png   # every part, drawn to a PNG
 cargo run -p lp-panel --example term -- --snapshot out.png --size 800x480 --run 'ls -l /'
 ```
 
-The crates live in `crates/kms`, `crates/keys`, `crates/paint`, `crates/panel` and `crates/term`; their tests
+The crates live in `crates/kms`, `crates/keys`, `crates/paint`, `crates/panel`, `crates/term` and `crates/wayland`; their tests
 are unit tests beside the code. Two kinds pass quietly when what they need is missing, so a
 green run here can hide them:
 - the comparisons with `page-kit.js` (`lp_keys::common`, `lp_paint::dark`) read

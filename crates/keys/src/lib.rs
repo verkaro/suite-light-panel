@@ -119,6 +119,75 @@ impl Key {
     }
 }
 
+/// Which keys are down, and the [`Key`] each event makes from that: its modifiers (a modifier's
+/// own press included) and what it types on a US layout. One place for it, whether the codes
+/// come from evdev ([`Keyboards`]) or from a Wayland compositor (`lp-wayland`), which sends the
+/// same codes.
+#[derive(Clone)]
+pub struct Held([bool; 768]);
+
+impl Default for Held {
+    fn default() -> Self {
+        Held([false; 768])
+    }
+}
+
+impl Held {
+    /// None down.
+    pub fn clear(&mut self) {
+        self.0 = [false; 768];
+    }
+
+    /// `code` down or up, without making a key: keys found already down. A code past the
+    /// table is ignored.
+    pub fn set(&mut self, code: u16, down: bool) {
+        if let Some(h) = self.0.get_mut(code as usize) {
+            *h = down;
+        }
+    }
+
+    pub fn is_down(&self, code: u16) -> bool {
+        self.0.get(code as usize).copied().unwrap_or(false)
+    }
+
+    pub fn mods(&self) -> Mods {
+        let h = |c: u16| self.is_down(c);
+        Mods {
+            shift: h(code::LEFTSHIFT) || h(code::RIGHTSHIFT),
+            ctrl: h(code::LEFTCTRL) || h(code::RIGHTCTRL),
+            alt: h(code::LEFTALT) || h(code::RIGHTALT),
+            meta: h(code::LEFTMETA) || h(code::RIGHTMETA),
+        }
+    }
+
+    /// The key an event makes, the table brought up to date first.
+    pub fn key(&mut self, code: u16, state: State) -> Key {
+        self.set(code, state != State::Release);
+        let mods = self.mods();
+        let ch = if mods.ctrl || mods.alt || mods.meta {
+            None
+        } else {
+            us(code).map(|(lo, hi)| if mods.shift { hi } else { lo })
+        };
+        Key { code, state, mods, ch }
+    }
+}
+
+/// Whether `code` is Shift, Ctrl, Alt or the meta key, on either side.
+pub fn is_modifier(c: u16) -> bool {
+    matches!(
+        c,
+        code::LEFTSHIFT
+            | code::RIGHTSHIFT
+            | code::LEFTCTRL
+            | code::RIGHTCTRL
+            | code::LEFTALT
+            | code::RIGHTALT
+            | code::LEFTMETA
+            | code::RIGHTMETA
+    )
+}
+
 /// The key every panel shares to leave for muntin, the family's frame: Ctrl+Alt+Esc (Warren,
 /// 2026-11-07). A panel acts on it only [`under_frame`], quitting as on its own quit key, with
 /// exit status 0; standing alone the key does nothing.
@@ -196,7 +265,7 @@ struct Device {
 /// Every keyboard plugged in when opened, and those [`Keyboards::add`]ed since.
 pub struct Keyboards {
     devs: Vec<Device>,
-    held: [bool; 768],
+    held: Held,
     /// Grab them, each as soon as no key is down on it.
     want: bool,
 }
@@ -314,7 +383,7 @@ impl Keyboards {
                 "no keyboard can be read: /dev/input needs the input group (log in again after joining it)",
             ));
         }
-        let mut k = Keyboards { devs, held: [false; 768], want: grab_them };
+        let mut k = Keyboards { devs, held: Held::default(), want: grab_them };
         // Keys already down count as held: a panel muntin starts on Alt+Tab opens with Alt still
         // down, and its Tab repeating mustn't read as Tab alone.
         k.read_held();
@@ -392,23 +461,19 @@ impl Keyboards {
 
     /// Which keys are held, read afresh from each keyboard (`EVIOCGKEY`).
     fn read_held(&mut self) {
-        self.held = [false; 768];
+        self.held.clear();
         for d in &self.devs {
             let b = bits(d.file.as_raw_fd(), 0x18);
-            for (c, h) in self.held.iter_mut().enumerate() {
-                *h |= has(&b, c);
+            for c in 0..768 {
+                if has(&b, c) {
+                    self.held.set(c as u16, true);
+                }
             }
         }
     }
 
     pub fn mods(&self) -> Mods {
-        let h = |c: u16| self.held[c as usize];
-        Mods {
-            shift: h(code::LEFTSHIFT) || h(code::RIGHTSHIFT),
-            ctrl: h(code::LEFTCTRL) || h(code::RIGHTCTRL),
-            alt: h(code::LEFTALT) || h(code::RIGHTALT),
-            meta: h(code::LEFTMETA) || h(code::RIGHTMETA),
-        }
+        self.held.mods()
     }
 
     /// Every key event waiting, without blocking. A device unplugged is dropped.
@@ -418,7 +483,7 @@ impl Keyboards {
         self.devs.retain_mut(|d| read_events(&mut d.file, &mut evs).is_ok());
         if self.devs.len() < before {
             // A keyboard unplugged with keys down: none of them is held now.
-            self.held = [false; 768];
+            self.held.clear();
         }
         self.settle();
         evs.into_iter()
@@ -430,14 +495,7 @@ impl Keyboards {
                     2 => State::Repeat,
                     _ => State::Press,
                 };
-                self.held[c as usize] = state != State::Release;
-                let mods = self.mods();
-                let ch = if mods.ctrl || mods.alt || mods.meta {
-                    None
-                } else {
-                    us(c).map(|(lo, hi)| if mods.shift { hi } else { lo })
-                };
-                Key { code: c, state, mods, ch }
+                self.held.key(c, state)
             })
             .collect()
     }
@@ -456,6 +514,27 @@ impl Drop for Keyboards {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn held_keys_make_mods_and_characters() {
+        let mut h = Held::default();
+        let a = h.key(30, State::Press);
+        assert_eq!((a.ch, a.mods), (Some('a'), Mods::default()));
+        let shift = h.key(code::LEFTSHIFT, State::Press);
+        assert!(shift.mods.shift, "a modifier's own press carries it");
+        assert_eq!(h.key(30, State::Repeat).ch, Some('A'));
+        h.key(code::LEFTCTRL, State::Press);
+        let c = h.key(46, State::Press);
+        assert!(c.mods.ctrl && c.mods.shift);
+        assert_eq!(c.ch, None, "nothing typed under Ctrl");
+        let up = h.key(code::LEFTCTRL, State::Release);
+        assert!(!up.mods.ctrl, "a modifier's release is without it");
+        h.clear();
+        assert_eq!(h.mods(), Mods::default());
+        h.set(9999, true); // past the table: ignored
+        assert!(!h.is_down(9999));
+        assert!(is_modifier(code::RIGHTMETA) && !is_modifier(30));
+    }
 
     #[test]
     fn us_layout() {

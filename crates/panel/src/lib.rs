@@ -17,6 +17,8 @@ pub mod keys;
 pub mod line;
 pub mod sheet;
 pub mod snapshot;
+#[cfg(feature = "wayland")]
+mod wayland;
 
 use lp_keys::{Hotplug, Key, Keyboards, PointerKind, Pointers};
 use lp_paint::{Image, Surface};
@@ -207,14 +209,28 @@ fn frame_switch(o: &Options, under: bool, k: &Key) -> bool {
     o.frame_key && under && alt_tab
 }
 
+/// The pointer's arrow, its pixels this many to a side on a screen `h` high.
+fn cursor_px(h: usize) -> i32 {
+    (h as i32 / 700).max(1)
+}
+
 /// How long `poll` waits with nothing happening, so [`Panel::tick`] still comes round.
 const TICK: i32 = 250;
 
 /// Runs `panel` on the screen until [`quit`] or a signal: the console in graphics mode, the
 /// screen opened, the keys (and pointers) taken. Everything is put back on the way out, the
 /// screen before the console's mode. An error if the screen or the keys can't be had.
+///
+/// With the `wayland` feature, started under a compositor (`WAYLAND_DISPLAY` set) and not under
+/// muntin, it runs in a window instead: the same panel, the same calls, the window's size for
+/// the screen's (Warren, 2026-11-25). `card`, `output` and `grab` mean nothing there, nor do
+/// muntin's keys, which are the compositor's.
 pub fn run(o: &Options, wake: &Wake, panel: &mut impl Panel) -> Result<(), String> {
     install_signals();
+    #[cfg(feature = "wayland")]
+    if lp_wayland::available() && !lp_keys::under_frame() {
+        return wayland::run(o, wake, panel);
+    }
     let name = o.name;
     // Declared before the screen, so dropped after it: the screen is put back before the VT's
     // mode is.
@@ -246,7 +262,7 @@ pub fn run(o: &Options, wake: &Wake, panel: &mut impl Panel) -> Result<(), Strin
             }
         }
     };
-    let cursor_px = (h as i32 / 700).max(1);
+    let cursor_px = cursor_px(h);
     if keys.is_empty() {
         eprintln!("{name}: no keyboard yet: plug one in");
     }

@@ -78,6 +78,9 @@ lp-kms = { git = "https://github.com/verkaro/suite-light-panel", rev = "COMMIT" 
   `infocmp linux`'s capabilities tested. `Pty` runs a program on a pseudo-terminal of its
   own, given its environment whole; `key_bytes` is what a key sends, as terminfo's `linux`
   says. `lp_paint::grid` draws the rows at the screen's own pixels.
+- `lp-wayland`: a panel in a Wayland window (Warren, 2026-11-25), for running under sway as
+  well as on the console. `lp-panel`'s `run` takes it, with the `wayland` feature, when started
+  under a compositor and not under muntin. The same panel, called the same way.
   `cargo run -p lp-panel --example term` is a terminal standing alone on a screen.
   Needs only `libc` and `lp-keys`.
 
@@ -114,6 +117,12 @@ for byte, and on a real screen it looks and acts as before (Warren, 2026-11-07).
 `lp-term` (2026-11-13): `cargo run --release -p lp-panel --example term`, a terminal standing
 alone. Its gate asked for `bash`, `vim`, `less`, `htop` and `mc` on a real screen; Warren tried
 it and said "all tests successful" (2026-11-13).
+
+`lp-wayland` (2026-11-25), tried first as `../sway-try`, a toy panel: its window's pixels are
+the panel's in memory exactly, and keys, repeats, the pointer, a resize and a keyboard plugged in
+pass on a headless sway (`headless.sh`). Warren tried sway-try in sway and said "it works"
+(2026-11-25), on sway-try's own loop, before it moved here. Not yet: the suite's window on a
+real screen, nor a tool's panel in it.
 
 The keys, the command bar, `?`, and a key, a field, a list and a waveform (2026-11-10) came
 with dexter-irma's panel. They're tested by what they draw into memory. Not yet: any of them on
