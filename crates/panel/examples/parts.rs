@@ -11,7 +11,7 @@
 use lp_keys::common::{Declared, KEYS};
 use lp_paint::{
     Align, Cell, Column, Dial, Disc, Field, FieldState, Fonts, Hits, Image, KeyLook, List, ListLook, Marker,
-    Pen, Rect, Scale, Skin, Surface, View, Wave, knob_pos, set_skin, skin, write_png,
+    Pen, Rect, Scale, Skin, Surface, View, Wave, Whole, Window, knob_pos, set_skin, skin, write_png,
 };
 use lp_panel::bar::{Bar, Opt};
 use lp_panel::keys::keys_over;
@@ -21,7 +21,7 @@ use lp_panel::snapshot::keys_of;
 fn main() -> Result<(), String> {
     let mut args = std::env::args().skip(1);
     let path = args.next().ok_or("parts PNG [WxH] [skin]")?;
-    let size = args.next().unwrap_or("1400x1340".into());
+    let size = args.next().unwrap_or("1400x1760".into());
     let (w, h) = size.split_once('x').ok_or("the size is WxH")?;
     let (w, h): (usize, usize) = (w.parse().map_err(|_| "W")?, h.parse().map_err(|_| "H")?);
     if let Some(name) = args.next() {
@@ -36,14 +36,65 @@ fn main() -> Result<(), String> {
     Ok(())
 }
 
-/// Every part, in the thread's skin, on a 1400 × 1340 canvas fitted to `sf`; the keys over them
+/// A sound of six seconds with a quiet stretch in it: the lowest and highest sample of each of
+/// `columns` columns from `from` to `to`, in ms, 0 where there's no sound.
+fn pictured(from: f64, to: f64, columns: usize) -> (Vec<f32>, Vec<f32>) {
+    let at = |t: f64| -> f32 {
+        if !(0.0..6000.0).contains(&t) {
+            return 0.0;
+        }
+        let wobble = 0.55 + 0.45 * ((t as u64 * 7919) % 97) as f32 / 97.0;
+        // Four hits, each dying away, and nearly nothing from 2.6 s to 3.1 s.
+        let since = [3_100.0, 1_900.0, 700.0, 100.0].iter().find(|s| t >= **s).map_or(t, |s| t - s);
+        let level = if (2_600.0..3_100.0).contains(&t) { 0.002 } else { 0.9 * (-since / 260.0).exp() as f32 };
+        wobble * level.max(0.002)
+    };
+    let width = (to - from) / columns as f64;
+    let hi: Vec<f32> = (0..columns)
+        .map(|k| (0..8).map(|j| at(from + (k as f64 + j as f64 / 8.0) * width)).fold(0.0, f32::max))
+        .collect();
+    (hi.iter().map(|v| -v).collect(), hi)
+}
+
+fn windows(pen: &mut Pen) {
+    let (lo, hi) = pictured(0.0, 6000.0, 2000);
+    let whole = Whole { lo: &lo, hi: &hi, from: 0.0, to: 6000.0 };
+    let db = Scale::Db { floor: -72.0 };
+    // Where the mark is, the step its digits set, how it's drawn, and the name.
+    let four = [
+        (3_100.0, 30.0, Scale::Linear, "AT A MARK"),
+        (60.0, 10.0, Scale::Linear, "AT THE START"),
+        (5_950.0, 30.0, db, "AT THE END, dB"),
+        (6_300.0, 15.0, db, "PAST THE END, dB"),
+    ];
+    for (k, (mark, step, scale, name)) in four.into_iter().enumerate() {
+        let (x, y) = (10 + 695 * (k as i32 % 2), 1346 + 206 * (k as i32 / 2));
+        pen.rule(Rect::new(x + 10, y, 665, 16), name);
+        let win = Window::open(mark, step);
+        let (lo, hi) = pictured(win.from, win.to, 700);
+        let markers = [Marker { at: mark, label: "MARK", color: skin().amber }];
+        let wave = Wave {
+            lo: &lo,
+            hi: &hi,
+            from: win.from,
+            to: win.to,
+            unit: "ms",
+            scale,
+            curve: &[],
+            markers: &markers,
+        };
+        pen.wave_with_whole(Rect::new(x, y + 20, 685, 176), &wave, &whole);
+    }
+}
+
+/// Every part, in the thread's skin, on a 1400 × 1760 canvas fitted to `sf`; the keys over them
 /// with `keys`.
 pub fn draw(sf: &mut Surface, fonts: &Fonts, keys: bool) -> Result<(), String> {
     sf.clear(skin().page);
-    let v = View::fit(1400, 1340, sf.w, sf.h);
+    let v = View::fit(1400, 1760, sf.w, sf.h);
     let mut pen = Pen { sf, fonts, v };
     let mut hits = Hits::new();
-    pen.fill(Rect::new(0, 0, 1400, 1340), skin().bg);
+    pen.fill(Rect::new(0, 0, 1400, 1760), skin().bg);
 
     // A list, the hand on it.
     pen.fill(Rect::new(10, 10, 560, 400), skin().panel);
@@ -175,6 +226,10 @@ pub fn draw(sf: &mut Surface, fonts: &Fonts, keys: bool) -> Result<(), String> {
     };
     pen.wave(Rect::new(580, 210, 810, 190), &wave);
     pen.wave(Rect::new(10, 420, 1380, 240), &Wave { scale: Scale::Db { floor: -90.0 }, ..wave });
+
+    // A window to place a mark by, over the strip of the whole sound: on a mark, at the start,
+    // at the end (each running past it), and wholly past the end, in dB.
+    windows(&mut pen);
 
     // The bar, each way it's used, and closed.
     let options = Bar::screen(&hits, vec![Opt::new("quit", "quit")]);

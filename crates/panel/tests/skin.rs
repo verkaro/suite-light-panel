@@ -13,7 +13,7 @@ use std::collections::HashSet;
 fn drawn(s: &'static Skin, keys: bool, name: &str) -> HashSet<u32> {
     set_skin(s);
     let fonts = Fonts::terminus(None).expect("the Terminus fonts (console-setup-linux)");
-    let mut img = Image::new(1400, 1340);
+    let mut img = Image::new(1400, 1760);
     let mut sf = img.surface();
     parts::draw(&mut sf, &fonts, keys).unwrap();
     if let Some(d) = std::env::var_os("PARTS_PNG") {

@@ -4,6 +4,22 @@ What changed in an interface or a behaviour, newest first: a line for each, nami
 what a tool has to do about it. Read it before moving a pin. Begun 2026-11-07; for before that,
 the git log.
 
+## 2026-11-25
+
+- `lp-paint`: **a waveform to place a mark by** (`../suite-audio-libs/RFC-waveform.md`, w2).
+  `Window` (`open`, `follow`): the span shown while a mark is placed, `WINDOW_STEPS` (40) of its
+  nudge steps across, the mark centred when it opens, then scrolled as little as keeps it
+  `EDGE_STEPS` (2) inside either edge; a new step changes the width with the mark where it was
+  across; never held to the sound. `Whole`: the whole sound's picture and where it starts and
+  ends (`split`, `time_at`). `Pen::wave_with_whole(r, &wave, &whole)`: the window, empty past
+  the sound's ends (no silence line, no ground), over a strip of the whole, faint, the window's
+  place in the sound's colour with a mark over and under it. `Wave` and `Pen::wave` are as they
+  were, and draw the same pixels. `as-page-kit`'s `kitWave` is its page half, both held to
+  `as-page-kit`'s `testdata/wave-view.txt` when the audio suite is beside this one. The parts
+  example draws four windows and is now 1400 × 1760. None of it has been on a real screen.
+  **A tool:** nothing, until it takes it (irma first, w3). It asks its server for `from` to
+  `to` of the window, and keeps the whole's picture it was sent.
+
 ## 2026-11-13
 
 - `lp-paint`: `contrast(a, b)`, WCAG 2's ratio, and `Skin::ground()`: where words that warn are
