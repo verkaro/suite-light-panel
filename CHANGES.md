@@ -6,6 +6,11 @@ the git log.
 
 ## 2026-11-25
 
+- `lp-panel`: **`run` switches the VT on Ctrl+Alt+F*n* itself** (Warren, 2026-11-25), whether
+  the panel asked or not, as `STYLE.md` has it ("a panel always lets it through"). The panel
+  still gets the key first, to let go of what's held (BRR does). Found when sway-try's toy, which
+  never asked, couldn't be switched away from. **A tool:** nothing; a panel's own
+  `vt_key`/`switch_vt` still works and now does nothing more, and may go at its next session.
 - `lp-wayland`, new: **a panel in a Wayland window**, for sway (Warren, 2026-11-25; the terms in
   `../NOTES.md`, "The plan holds"). `Window::open`, `poll` (the window and the fds given, up to
   a timeout), `size`, `cursor`, `ready`, `present`. Moved from `../sway-try`, where it was

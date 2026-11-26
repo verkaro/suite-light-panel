@@ -35,8 +35,10 @@ pub trait Panel {
     /// The loop has come round, woken or not: take what the panel's threads have sent. Whether
     /// anything changed that shows.
     fn take(&mut self) -> bool;
-    /// A key pressed, repeated or let go. Whether anything changed that shows. `ctl` switches
-    /// the VT (Ctrl+Alt+F*n*: [`vt_key`]).
+    /// A key pressed, repeated or let go. Whether anything changed that shows. Ctrl+Alt+F*n*
+    /// comes here too, then the loop switches the VT whatever the panel did ([`vt_key`];
+    /// `STYLE.md`: a panel always lets it through): the panel's chance to let go of what's held
+    /// before it's away. `ctl` switches the VT on another key.
     fn key(&mut self, k: &Key, ctl: &mut Ctl) -> bool;
     /// The pointer, on a screen of `w` × `h`. Whether anything changed that shows.
     fn point(&mut self, e: Pointer, w: usize, h: usize) -> bool;
@@ -68,7 +70,7 @@ impl Ctl {
 }
 
 /// The VT Ctrl+Alt+F*n* switches to, as the console's own keys would: grabbed keys never
-/// reach the kernel's.
+/// reach the kernel's. [`run`] switches on it itself (2026-11-25); a panel needn't.
 pub fn vt_key(k: &Key) -> Option<i32> {
     use lp_keys::code::{F1, F10, F11, F12};
     if !(k.mods.ctrl && k.mods.alt) || !k.down() {
@@ -207,6 +209,12 @@ fn frame_quits(o: &Options, under: bool, k: &Key) -> bool {
 fn frame_switch(o: &Options, under: bool, k: &Key) -> bool {
     let alt_tab = k.code == lp_keys::code::TAB && k.mods.alt && !k.mods.ctrl && !k.mods.meta;
     o.frame_key && under && alt_tab
+}
+
+/// The VT to switch to after `k`: the panel's ask, else Ctrl+Alt+F*n*'s, which always goes
+/// through (Warren, 2026-11-25: the loop's to handle, so a panel can't miss it).
+fn vt_to_switch(ctl: &Ctl, k: &Key) -> Option<i32> {
+    ctl.vt.or_else(|| vt_key(k))
 }
 
 /// The pointer's arrow, its pixels this many to a side on a screen `h` high.
@@ -356,7 +364,7 @@ pub fn run(o: &Options, wake: &Wake, panel: &mut impl Panel) -> Result<(), Strin
             }
             let mut ctl = Ctl::default();
             dirty |= panel.key(&k, &mut ctl);
-            if let Some(n) = ctl.vt {
+            if let Some(n) = vt_to_switch(&ctl, &k) {
                 console.activate(n);
             }
         }
@@ -420,6 +428,20 @@ mod tests {
         assert!(poll(&w));
         w.drain();
         assert!(!poll(&w));
+    }
+
+    #[test]
+    fn ctrl_alt_f_switches_whether_the_panel_asks_or_not() {
+        let f3 = key(code::F1 + 2, State::Press, true, true);
+        assert_eq!(vt_to_switch(&Ctl::default(), &f3), Some(3), "a panel that ignores it");
+        let mut asked = Ctl::default();
+        asked.switch_vt(3);
+        assert_eq!(vt_to_switch(&asked, &f3), Some(3), "a panel that asks: once, the same");
+        let mut other = Ctl::default();
+        other.switch_vt(5);
+        let a = key(30, State::Press, false, false);
+        assert_eq!(vt_to_switch(&other, &a), Some(5), "a panel's own key still switches");
+        assert_eq!(vt_to_switch(&Ctl::default(), &a), None);
     }
 
     #[test]
