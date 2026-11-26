@@ -15,7 +15,8 @@ the git log.
   down and the `Key` each event makes (its mods and character), now `Keyboards`' and the
   window's alike, and `is_modifier`. Keys made from evdev are as they were. **A tool:** nothing.
   To be a window under sway, take `lp-panel` with `features = ["wayland"]`; nothing in the
-  panel changes. Not yet tried on a real screen through the suite.
+  panel changes. Warren tried it in sway through the suite: it works (pasting doesn't: no
+  clipboard).
 - `lp-paint`: **a waveform to place a mark by** (`../suite-audio-libs/RFC-waveform.md`, w2).
   `Window` (`open`, `follow`): the span shown while a mark is placed, `WINDOW_STEPS` (40) of its
   nudge steps across, the mark centred when it opens, then scrolled as little as keeps it
